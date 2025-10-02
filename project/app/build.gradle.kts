@@ -56,4 +56,14 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Apache POI XLSX failide parsimiseks
+    implementation("org.apache.poi:poi:5.2.5")
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
+
+    // Vajalik Apache POI jaoks, et vältida vigu uuematel Androididel
+    implementation("org.apache.xmlbeans:xmlbeans:5.2.0")
+    implementation("org.apache.commons:commons-compress:1.26.1")
+    implementation("com.github.virtuald:curvesapi:1.08")
+
 }
