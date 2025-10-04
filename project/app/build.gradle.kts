@@ -66,4 +66,6 @@ dependencies {
     //implementation("org.apache.commons:commons-compress:1.26.1")
     //implementation("com.github.virtuald:curvesapi:1.08")
 
+    implementation("androidx.navigation:navigation-compose:2.7.7") //for navigation
+
 }

@@ -45,7 +45,6 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header: Avatar + Name + Email
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
@@ -84,19 +83,16 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
                 }
             }
 
-            // Personal details
             SectionCard(title = "Personal details") {
                 KeyValueRow("Date of birth", "2025-1-1")
                 KeyValueRow("Phone", "+111 111 111")
             }
 
-            // CGM device
             SectionCard(title = "CGM device") {
                 KeyValueRow("Sensor", "Dexcom G7")
 
             }
 
-            // App preferences (static)
             SectionCard(title = "App preferences") {
                 KeyValueRow("Notifications", "Enabled")
 

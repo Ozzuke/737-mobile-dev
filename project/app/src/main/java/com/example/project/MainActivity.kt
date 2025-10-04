@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.project.ui.navigation.AppNav
 import com.example.project.ui.screens.ProfileScreen
 import com.example.project.ui.theme.ProjectTheme
 
@@ -21,7 +22,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ProjectTheme(darkTheme = isSystemInDarkTheme(), dynamicColor = false) {
-                ProfileScreen()
+                AppNav()
 
             }
         }
