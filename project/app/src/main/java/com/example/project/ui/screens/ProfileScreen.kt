@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -20,15 +21,24 @@ import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(modifier: Modifier = Modifier) {
+fun ProfileScreen(
+    modifier: Modifier = Modifier,
+    onBackClick: () -> Unit = {}
+) {
     val scroll = rememberScrollState()
     val c = MaterialTheme.colorScheme
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Profile", color = c.onPrimary) },
-                colors = TopAppBarDefaults.topAppBarColors(
+            CenterAlignedTopAppBar(
+                title = { Text("Profile") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = c.onPrimary)
+                    }
+
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = c.primary,
                     titleContentColor = c.onPrimary,
                     navigationIconContentColor = c.onPrimary,

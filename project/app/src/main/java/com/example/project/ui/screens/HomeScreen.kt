@@ -5,14 +5,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,8 +26,10 @@ import androidx.compose.ui.unit.dp
 import com.example.project.ui.components.WidgetTile
 import com.example.project.ui.theme.ProjectTheme
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    onAddClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onInfoClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
@@ -31,33 +37,34 @@ fun HomeScreen(
 ) {
     Scaffold(
         topBar = {
-            Surface(tonalElevation = 2.dp) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .height(56.dp)
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            val c = MaterialTheme.colorScheme
+            CenterAlignedTopAppBar(
+                title = { Text("Dashboard") },
+                navigationIcon = {
+                    IconButton(onClick = onAddClick) {
+                        Icon(Icons.Outlined.Add, contentDescription = "Add", tint = c.onPrimary)
+                    }
+                },
+                actions = {
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
+                        Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = c.onPrimary)
                     }
-
-                    Text("USER", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-
-                    Row {
-                        IconButton(onClick = onInfoClick) {
-                            Icon(Icons.Outlined.Info, contentDescription = "Info")
-                        }
-                        IconButton(onClick = onProfileClick) {
-                            Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile")
-                        }
+                    IconButton(onClick = onInfoClick) {
+                        Icon(Icons.Outlined.Info, contentDescription = "Info", tint = c.onPrimary)
                     }
-                }
-            }
+                    IconButton(onClick = onProfileClick) {
+                        Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile", tint = c.onPrimary)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = c.primary,
+                    titleContentColor = c.onPrimary,
+                    navigationIconContentColor = c.onPrimary,
+                    actionIconContentColor = c.onPrimary
+                )
+            )
         }
+
     ) { inner ->
         Column(
             Modifier
