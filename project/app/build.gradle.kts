@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.project"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -56,16 +56,11 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-
-    // Apache POI XLSX failide parsimiseks
-    //implementation("org.apache.poi:poi:5.2.5")
-    //implementation("org.apache.poi:poi-ooxml:5.2.5")
-
-    // Vajalik Apache POI jaoks, et vältida vigu uuematel Androididel
-    //implementation("org.apache.xmlbeans:xmlbeans:5.2.0")
-    //implementation("org.apache.commons:commons-compress:1.26.1")
-    //implementation("com.github.virtuald:curvesapi:1.08")
-
     implementation("androidx.navigation:navigation-compose:2.7.7") //for navigation
 
+    // CSV parsing
+    implementation("com.opencsv:opencsv:5.9")
+
+    // ViewModel for Compose
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 }
