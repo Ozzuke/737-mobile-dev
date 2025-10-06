@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.project.data.model.GlucoseReading
+import com.example.project.domain.model.GlucoseReading
 
 @Composable
 fun GlucoseWidget(
@@ -29,8 +29,8 @@ fun GlucoseWidget(
         tonalElevation = 2.dp
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -72,4 +72,3 @@ fun GlucoseWidget(
         }
     }
 }
-
