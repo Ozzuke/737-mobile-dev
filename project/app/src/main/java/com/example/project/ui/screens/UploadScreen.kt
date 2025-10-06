@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.project.data.repository.GlucoseCsvRepository
 import com.example.project.ui.viewmodels.GlucoseViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,23 +26,30 @@ fun UploadScreen(
     val c = MaterialTheme.colorScheme
     val context = LocalContext.current
     val repository = remember { GlucoseCsvRepository() }
+    val coroutineScope = rememberCoroutineScope()
 
     var uploadStatus by remember { mutableStateOf<String?>(null) }
+    var isUploading by remember { mutableStateOf(false) }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            try {
-                val readings = repository.parseGlucoseData(context, it)
-                if (readings.isNotEmpty()) {
-                    viewModel.updateReadings(readings)
-                    uploadStatus = "Successfully uploaded ${readings.size} glucose readings"
-                } else {
-                    uploadStatus = "No glucose readings found in file"
+            isUploading = true
+            coroutineScope.launch {
+                try {
+                    val readings = repository.parseGlucoseData(context, it)
+                    if (readings.isNotEmpty()) {
+                        viewModel.updateReadings(readings)
+                        uploadStatus = "Successfully uploaded ${readings.size} glucose readings"
+                    } else {
+                        uploadStatus = "No glucose readings found in file"
+                    }
+                } catch (e: Exception) {
+                    uploadStatus = "Error parsing file: ${e.message}"
+                } finally {
+                    isUploading = false
                 }
-            } catch (e: Exception) {
-                uploadStatus = "Error parsing file: ${e.message}"
             }
         }
     }
@@ -83,12 +91,20 @@ fun UploadScreen(
                     modifier = Modifier
                         .fillMaxWidth(0.9f)
                         .height(64.dp),
-                    contentPadding = PaddingValues(vertical = 18.dp, horizontal = 24.dp)
+                    contentPadding = PaddingValues(vertical = 18.dp, horizontal = 24.dp),
+                    enabled = !isUploading
                 ) {
-                    Text(
-                        "Upload CSV file",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    if (isUploading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text(
+                            "Upload CSV file",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
                 }
 
                 uploadStatus?.let { status ->
