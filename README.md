@@ -4,11 +4,11 @@ A mobile application that analyzes Continuous Glucose Monitoring (CGM) data to i
 
 ## Roles
 - **Team Leads** - Henri Einroos / Leo-Martin Pala
-Second in Command - Leo-Martin Pala
+- Second in Command - Leo-Martin Pala
 - **Presenter** - Osvald Nigola
-Middle Management Head - Leo-Martin Pala
+- Middle Management Head - Leo-Martin Pala
 - Lead **Researcher** - Henri Einroos
-HR Manager - Mia Melanie Moor
+- HR Manager - Mia Melanie Moor
 - **Editor** - Mia Melanie Moor
 - **Lead Developer / Builder** - Leo-Martin Pala
 - Lunar Operations Head - Henri Einroos
