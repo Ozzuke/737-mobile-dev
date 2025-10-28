@@ -11,9 +11,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 
+import com.example.project.domain.repository.GlucoseRepository
+
 class GlucoseViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository: GlucoseDatabaseRepository
+    private val repository: GlucoseRepository
 
     val latestReading: StateFlow<GlucoseReading?>
     val allReadings: StateFlow<List<GlucoseReading>>

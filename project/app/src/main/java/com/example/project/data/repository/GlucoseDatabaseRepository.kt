@@ -7,21 +7,23 @@ import com.example.project.domain.model.GlucoseReading
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class GlucoseDatabaseRepository(private val glucoseDao: GlucoseDao) {
+import com.example.project.domain.repository.GlucoseRepository
 
-    val allReadings: Flow<List<GlucoseReading>> = glucoseDao.getAllReadings().map {
+class GlucoseDatabaseRepository(private val glucoseDao: GlucoseDao) : GlucoseRepository {
+
+    override val allReadings: Flow<List<GlucoseReading>> = glucoseDao.getAllReadings().map {
         it.map { entity -> entity.toDomainModel() }
     }
 
-    val latestReading: Flow<GlucoseReading?> = glucoseDao.getLatestReading().map {
+    override val latestReading: Flow<GlucoseReading?> = glucoseDao.getLatestReading().map {
         it?.toDomainModel()
     }
 
-    suspend fun insertReadings(readings: List<GlucoseReading>) {
+    override suspend fun insertReadings(readings: List<GlucoseReading>) {
         glucoseDao.insertAll(readings.map { it.toEntity() })
     }
 
-    suspend fun deleteAllReadings() {
+    override suspend fun deleteAllReadings() {
         glucoseDao.deleteAll()
     }
 }

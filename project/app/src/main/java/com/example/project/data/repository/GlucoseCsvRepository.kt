@@ -6,9 +6,11 @@ import com.example.project.domain.model.GlucoseReading
 import com.opencsv.CSVReader
 import java.io.InputStreamReader
 
-class GlucoseCsvRepository {
+import com.example.project.domain.repository.GlucoseCsvRepository
 
-    fun parseGlucoseData(context: Context, uri: Uri): List<GlucoseReading> {
+class GlucoseCsvRepository : GlucoseCsvRepository {
+
+    override fun parseGlucoseData(context: Context, uri: Uri): List<GlucoseReading> {
         val readings = mutableListOf<GlucoseReading>()
 
         try {
