@@ -1,3 +1,18 @@
 <resources>
     <string name="app_name">project</string>
+    <string name="profile_title">Profile</string>
+    <string name="back_button_description">Back</string>
+    <string name="user_avatar_description">User avatar</string>
+    <string name="personal_details_title">Personal details</string>
+    <string name="dob">Date of birth</string>
+    <string name="dob_value">2025-1-1</string>
+    <string name="phone">Phone</string>
+    <string name="phone_value">+111 111 111</string>
+    <string name="cgm_device_title">CGM device</string>
+    <string name="cgm_sensor">Sensor</string>
+    <string name="cgm_sensor_value">Dexcom G7</string>
+    <string name="app_preferences_title">App preferences</string>
+    <string name="notifications">Notifications</string>
+    <string name="notifications_value">Enabled</string>
+    <string name="app_version">CGM Buddy • v1.0.0</string>
 </resources>
