@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.project.domain.model.AnalysisResult
 import com.example.project.domain.model.DatasetSummary
 import com.example.project.domain.repository.CgmApiRepository
+import com.example.project.ui.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -131,14 +132,3 @@ class CgmApiViewModel(
     }
 }
 
-/**
- * Sealed class representing different UI states
- * This pattern makes it easy to handle loading, success, error, and empty states
- */
-sealed class UiState<out T> {
-    object Idle : UiState<Nothing>()
-    object Loading : UiState<Nothing>()
-    data class Success<T>(val data: T) : UiState<T>()
-    data class Error(val message: String, val exception: Throwable) : UiState<Nothing>()
-    object Empty : UiState<Nothing>()
-}

@@ -38,7 +38,8 @@ fun AppNav() {
         factory = com.example.project.ui.viewmodels.GlucoseViewModelFactory(
             application = application,
             glucoseRepository = application.glucoseRepository,
-            csvRepository = application.csvRepository
+            csvRepository = application.csvRepository,
+            cgmApiRepository = application.cgmApiRepository
         )
     )
 

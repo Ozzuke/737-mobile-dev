@@ -1,5 +1,6 @@
 package com.example.project.domain.repository
 
+import android.net.Uri
 import com.example.project.domain.model.AnalysisResult
 import com.example.project.domain.model.DatasetData
 import com.example.project.domain.model.DatasetSummary
@@ -41,4 +42,17 @@ interface CgmApiRepository {
         preset: String,
         lang: String = "en"
     ): Result<AnalysisResult>
+
+    /**
+     * Upload a CGM dataset from a file URI
+     * @param fileUri The URI of the file to upload
+     * @param nickname An optional nickname for the dataset
+     * @param unit The unit of the glucose readings (e.g., "mmol/L")
+     * @return Result containing the new dataset's summary, or error
+     */
+    suspend fun uploadDataset(
+        fileUri: Uri,
+        nickname: String?,
+        unit: String?
+    ): Result<DatasetSummary>
 }

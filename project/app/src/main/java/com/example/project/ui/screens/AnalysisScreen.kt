@@ -17,8 +17,9 @@ import com.example.project.domain.model.*
 import com.example.project.ui.components.EmptyView
 import com.example.project.ui.components.ErrorView
 import com.example.project.ui.components.LoadingView
+import com.example.project.ui.UiState
 import com.example.project.ui.viewmodels.CgmApiViewModel
-import com.example.project.ui.viewmodels.UiState
+import java.util.Locale
 
 /**
  * Screen displaying analysis results for a specific dataset
@@ -221,7 +222,7 @@ private fun OverallRatingCard(rating: OverallRating) {
                 )
                 rating.score?.let { score ->
                     Text(
-                        text = "Score: ${String.format("%.1f", score)}",
+                        text = "Score: ${String.format(Locale.US, "%.1f", score)}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -299,7 +300,7 @@ private fun TextAnalysisCard(summary: String, interpretation: String) {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            Divider()
+            HorizontalDivider()
             Column {
                 Text(
                     text = "Interpretation",
@@ -338,7 +339,7 @@ private fun PatternsCard(patterns: List<Pattern>) {
             patterns.forEach { pattern ->
                 PatternItem(pattern)
                 if (pattern != patterns.last()) {
-                    Divider()
+                    HorizontalDivider()
                 }
             }
         }
@@ -400,7 +401,7 @@ private fun TrendsCard(trends: List<TrendAnnotation>) {
             )
             trends.forEach { trend ->
                 Text(
-                    text = "${trend.direction.name}: ${trend.exampleSpan} (${String.format("%.2f", trend.slopeMmolLPerHour)} mmol/L per hour)",
+                    text = "${trend.direction.name}: ${trend.exampleSpan} (${String.format(Locale.US, "%.2f", trend.slopeMmolLPerHour)} mmol/L per hour)",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -431,7 +432,7 @@ private fun ExtremaCard(extrema: List<ExtremaAnnotation>) {
                 val hours = extremum.minute / 60
                 val minutes = extremum.minute % 60
                 Text(
-                    text = "${extremum.kind.name}: ${String.format("%.1f", extremum.value)} mmol/L at ${String.format("%02d:%02d", hours, minutes)}",
+                    text = "${extremum.kind.name}: ${String.format(Locale.US, "%.1f", extremum.value)} mmol/L at ${String.format(Locale.US, "%02d:%02d", hours, minutes)}",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }

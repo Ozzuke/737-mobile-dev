@@ -19,8 +19,8 @@ import com.example.project.domain.model.DatasetSummary
 import com.example.project.ui.components.EmptyView
 import com.example.project.ui.components.ErrorView
 import com.example.project.ui.components.LoadingView
+import com.example.project.ui.UiState
 import com.example.project.ui.viewmodels.CgmApiViewModel
-import com.example.project.ui.viewmodels.UiState
 
 /**
  * Screen displaying datasets from the CGM API

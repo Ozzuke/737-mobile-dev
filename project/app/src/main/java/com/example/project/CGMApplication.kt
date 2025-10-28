@@ -32,6 +32,6 @@ class CGMApplication : Application() {
 
     // CGM API Repository (remote API)
     val cgmApiRepository: CgmApiRepository by lazy {
-        CgmApiRepositoryImpl(RetrofitClient.apiService)
+        CgmApiRepositoryImpl(RetrofitClient.apiService, applicationContext)
     }
 }
