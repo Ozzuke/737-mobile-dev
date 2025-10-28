@@ -10,7 +10,7 @@ import com.example.project.domain.model.*
 fun DatasetSummaryDto.toDomain(): DatasetSummary {
     return DatasetSummary(
         datasetId = datasetId,
-        nickname = nickname,
+        nickname = nickname ?: "Unnamed Dataset",
         createdAt = createdAt,
         rowCount = rowCount,
         startDate = start,
@@ -23,7 +23,7 @@ fun DatasetSummaryDto.toDomain(): DatasetSummary {
 fun DatasetDataResponseDto.toDomain(): DatasetData {
     return DatasetData(
         datasetId = dataset.datasetId,
-        nickname = dataset.nickname,
+        nickname = dataset.nickname ?: "Unnamed Dataset",
         unit = unit,
         requestedPreset = meta.requestedPreset,
         availableDays = meta.availableDays,

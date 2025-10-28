@@ -13,7 +13,7 @@ data class DatasetSummaryDto(
     @Json(name = "dataset_id")
     val datasetId: String,
     @Json(name = "nickname")
-    val nickname: String,
+    val nickname: String?,
     @Json(name = "created_at")
     val createdAt: String,
     @Json(name = "row_count")
@@ -51,7 +51,7 @@ data class DatasetInfoDto(
     @Json(name = "dataset_id")
     val datasetId: String,
     @Json(name = "nickname")
-    val nickname: String
+    val nickname: String?
 )
 
 @JsonClass(generateAdapter = true)
