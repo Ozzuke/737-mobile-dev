@@ -5,10 +5,10 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.project.data.local.dao.GlucoseDao
-import com.example.project.domain.model.GlucoseReading
+import com.example.project.data.local.entity.GlucoseReadingEntity
 
 @Database(
-    entities = [GlucoseReading::class],
+    entities = [GlucoseReadingEntity::class],
     version = 1,
     exportSchema = false
 )
@@ -26,7 +26,7 @@ abstract class GlucoseDatabase : RoomDatabase() {
                     context.applicationContext,
                     GlucoseDatabase::class.java,
                     "glucose_database"
-                ).build()
+                ).fallbackToDestructiveMigration().build()
                 INSTANCE = instance
                 instance
             }
