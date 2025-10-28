@@ -5,15 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.*
+import com.example.project.ui.components.DisclaimerDialog
 import com.example.project.ui.navigation.AppNav
-import com.example.project.ui.screens.ProfileScreen
 import com.example.project.ui.theme.ProjectTheme
 
 class MainActivity : ComponentActivity() {
@@ -22,17 +16,17 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ProjectTheme(darkTheme = isSystemInDarkTheme(), dynamicColor = false) {
-                AppNav()
+                var showDisclaimer by remember { mutableStateOf(true) }
 
+                if (showDisclaimer) {
+                    DisclaimerDialog(
+                        onDismiss = { showDisclaimer = false },
+                        showOfflineWarning = false
+                    )
+                }
+
+                AppNav()
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun AppPreview() {
-    ProjectTheme(darkTheme = false, dynamicColor = false) {
-        AppNav()
     }
 }

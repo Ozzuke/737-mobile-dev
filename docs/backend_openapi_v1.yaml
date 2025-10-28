@@ -1,0 +1,786 @@
+openapi: 3.0.3
+info:
+  title: CGM Analyzer API
+  version: 1.1.0
+servers:
+  - url: /api/v1
+
+tags:
+  - name: health
+  - name: datasets
+  - name: analysis
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    Preset:
+      type: string
+      enum: ["24h", "7d", "14d"]
+
+    ExplanationStyle:
+      type: string
+      enum: ["detailed", "summary", "clinical"]
+      description: "Style of explanation: detailed (comprehensive), summary (concise), clinical (medical-focused)"
+
+    Error:
+      type: object
+      properties:
+        detail: { type: string }
+
+    ValidationResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: ["ok", "warning", "error"]
+        messages:
+          type: array
+          items: { type: string }
+        detected_unit:
+          type: string
+          enum: ["mmol/L", "mg/dL", "unknown"]
+        detected_format:
+          type: string
+          example: "auto-detected"
+        row_count:
+          type: integer
+        time_range:
+          type: object
+          properties:
+            start: { type: string, format: date-time }
+            end: { type: string, format: date-time }
+
+    DatasetSummary:
+      type: object
+      properties:
+        dataset_id: { type: string }
+        nickname: { type: string }
+        created_at: { type: string, format: date-time }
+        row_count: { type: integer }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        unit_internal:
+          type: string
+          enum: ["mmol/L"]
+        sampling_interval_min:
+          type: integer
+          description: "Median sampling interval detected at ingest (minutes)"
+
+    OverlayPoint:
+      type: object
+      properties:
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 1439
+          description: "Minute of day (0=00:00..1439=23:59). Points appear at multiples of resolution_min."
+        glucose:
+          type: number
+          description: "Glucose value in mmol/L"
+
+    OverlayDay:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/OverlayPoint" }
+
+    DataMeta:
+      type: object
+      properties:
+        requested_preset:
+          $ref: "#/components/schemas/Preset"
+        available_days:
+          type: integer
+          description: "How many days were available for the requested preset"
+        coverage_percent:
+          type: number
+          description: "Percentage of requested days effectively analyzed/returned"
+        resolution_min:
+          type: integer
+          description: "Output spacing in minutes (UI should adapt to this; often 5)"
+        warnings:
+          type: array
+          items: { type: string }
+
+    DatasetDataResponse:
+      type: object
+      properties:
+        dataset:
+          type: object
+          properties:
+            dataset_id: { type: string }
+            nickname: { type: string }
+        unit:
+          type: string
+          enum: ["mmol/L"]
+        meta:
+          $ref: "#/components/schemas/DataMeta"
+        overlay:
+          type: object
+          properties:
+            days:
+              type: array
+              items: { $ref: "#/components/schemas/OverlayDay" }
+
+    TrendAnnotation:
+      type: object
+      properties:
+        start_minute: { type: integer, minimum: 0, maximum: 1439 }
+        end_minute: { type: integer, minimum: 0, maximum: 1439 }
+        slope_mmol_l_per_hour: { type: number }
+        direction: { type: string, enum: ["up", "down"] }
+        example_span: { type: string, example: "03:00–07:00" }
+
+    ExtremaAnnotation:
+      type: object
+      properties:
+        minute: { type: integer, minimum: 0, maximum: 1439 }
+        value: { type: number, description: "mmol/L" }
+        kind: { type: string, enum: ["max", "min"] }
+
+    Pattern:
+      type: object
+      properties:
+        key: { type: string }
+        name: { type: string }
+        severity: { type: string, enum: ["info", "moderate", "high"] }
+        summary: { type: string }
+        instances:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              start_minute: { type: integer }
+              end_minute: { type: integer }
+
+    OverallRating:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: ["good", "attention", "urgent"]
+          description: "Overall status based on detected patterns and thresholds"
+        score:
+          type: number
+          description: "Optional 0–100 composite score (higher = better)"
+        reasons:
+          type: array
+          items: { type: string }
+
+    AnalyzeMeta:
+      allOf:
+        - $ref: "#/components/schemas/DataMeta"
+
+    AnalyzeResponse:
+      type: object
+      properties:
+        unit:
+          type: string
+          enum: ["mmol/L"]
+        meta:
+          $ref: "#/components/schemas/AnalyzeMeta"
+        overall:
+          $ref: "#/components/schemas/OverallRating"
+        annotations:
+          type: object
+          properties:
+            trends:
+              type: array
+              items: { $ref: "#/components/schemas/TrendAnnotation" }
+            extrema:
+              type: array
+              items: { $ref: "#/components/schemas/ExtremaAnnotation" }
+        patterns:
+          type: array
+          items: { $ref: "#/components/schemas/Pattern" }
+        text:
+          type: object
+          properties:
+            summary: { type: string }
+            interpretation: { type: string }
+
+    ExplainRequest:
+      type: object
+      required: [ dataset_id, preset ]
+      properties:
+        dataset_id: { type: string }
+        preset:
+          $ref: "#/components/schemas/Preset"
+        lang:
+          type: string
+          description: "BCP-47 language code (e.g., en, es, fr). Defaults to en."
+          default: "en"
+        style:
+          $ref: "#/components/schemas/ExplanationStyle"
+          default: "detailed"
+
+    ExplainFromAnalysisRequest:
+      type: object
+      required: [ analysis_data ]
+      properties:
+        analysis_data:
+          type: object
+          description: "Pre-computed analysis data from the /analyze endpoint"
+        lang:
+          type: string
+          description: "BCP-47 language code (e.g., en, es, fr). Defaults to en."
+          default: "en"
+        style:
+          $ref: "#/components/schemas/ExplanationStyle"
+          default: "detailed"
+
+    ExplainResponse:
+      type: object
+      properties:
+        explanation:
+          type: object
+          properties:
+            summary:
+              type: string
+              description: "Brief overview of the analysis"
+            interpretation:
+              type: string
+              description: "Detailed interpretation of patterns and findings"
+            recommendations:
+              type: array
+              items: { type: string }
+              description: "Optional actionable insights (note: this is not medical advice)"
+        meta:
+          type: object
+          properties:
+            coverage_percent:
+              type: number
+              description: "Data coverage percentage (only for /explain endpoint)"
+            preset:
+              $ref: "#/components/schemas/Preset"
+            lang: { type: string }
+            style:
+              $ref: "#/components/schemas/ExplanationStyle"
+
+paths:
+
+  /healthz:
+    get:
+      tags: [health]
+      summary: Liveness check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+              example: { status: "ok" }
+
+  /datasets:
+    post:
+      tags: [datasets]
+      summary: Upload CGM CSV
+      description: >
+        Accepts a single CGM CSV. Attempts auto-detection of timestamp and glucose columns. Normalizes units to mmol/L.
+        For privacy, remove personal columns before upload.
+      security: [ { ApiKeyAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ cgm_csv ]
+              properties:
+                cgm_csv:
+                  type: string
+                  format: binary
+                unit:
+                  type: string
+                  enum: ["mmol/L", "mg/dL"]
+                  description: "Optional explicit unit; if omitted, the backend attempts detection."
+                nickname:
+                  type: string
+                  description: "Optional short label to organize datasets"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dataset_id: { type: string }
+                  validation: { $ref: "#/components/schemas/ValidationResult" }
+              example:
+                dataset_id: "a9f42b3c-0bd1-4e0b-9e8a-8c2a1c1f5d77"
+                validation:
+                  status: "ok"
+                  messages: ["Parsed 5-minute CGM data; normalized to mmol/L"]
+                  detected_unit: "mmol/L"
+                  detected_format: "auto-detected"
+                  row_count: 4032
+                  time_range:
+                    start: "2025-09-30T00:00:00Z"
+                    end: "2025-10-14T23:55:00Z"
+        '400':
+          description: Bad Request (malformed CSV or parameters)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "CSV is missing a recognizable timestamp column" }
+        '401':
+          description: Unauthorized (missing/invalid API key)
+        '413':
+          description: Payload Too Large
+        '415':
+          description: Unsupported Media Type
+        '422':
+          description: Unprocessable Entity (validation failed)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "Detected time column could not be parsed" }
+        '500':
+          description: Internal Server Error
+
+    get:
+      tags: [datasets]
+      summary: List datasets
+      security: [ { ApiKeyAuth: [] } ]
+      responses:
+        '200':
+          description: Datasets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/DatasetSummary" }
+              example:
+                items:
+                  - dataset_id: "a9f42b3c-0bd1-4e0b-9e8a-8c2a1c1f5d77"
+                    nickname: "PatientA Oct"
+                    created_at: "2025-10-14T17:03:00Z"
+                    row_count: 4032
+                    start: "2025-09-30T00:00:00Z"
+                    end: "2025-10-14T23:55:00Z"
+                    unit_internal: "mmol/L"
+                    sampling_interval_min: 5
+                  - dataset_id: "5e97c1a1-0c7d-4b3f-9a20-6a9e7815b2dc"
+                    nickname: "PatientB 11d"
+                    created_at: "2025-10-13T18:11:02Z"
+                    row_count: 2880
+                    start: "2025-10-01T00:00:00Z"
+                    end: "2025-10-11T23:55:00Z"
+                    unit_internal: "mmol/L"
+                    sampling_interval_min: 5
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+
+  /datasets/{dataset_id}:
+    get:
+      tags: [datasets]
+      summary: Get dataset data (overlay) for a preset window
+      description: >
+        Returns 24h overlay data for the requested preset (24h/7d/14d). Data is in mmol/L and points appear at
+        multiples of meta.resolution_min (often 5). Use this to render the chart without waiting for analysis.
+      security: [ { ApiKeyAuth: [] } ]
+      parameters:
+        - in: path
+          name: dataset_id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: preset
+          required: true
+          schema: { $ref: "#/components/schemas/Preset" }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DatasetDataResponse" }
+              example:
+                dataset: { dataset_id: "a9f42b3c-0bd1-4e0b-9e8a-8c2a1c1f5d77", nickname: "PatientA Oct" }
+                unit: "mmol/L"
+                meta:
+                  requested_preset: "14d"
+                  available_days: 14
+                  coverage_percent: 100.0
+                  resolution_min: 5
+                  warnings: []
+                overlay:
+                  days:
+                    - date: "2025-10-13"
+                      points:
+                        - { minute: 0, glucose: 6.2 }
+                        - { minute: 5, glucose: 6.1 }
+                        - { minute: 10, glucose: 6.0 }
+                        - { minute: 180, glucose: 5.5 }
+                        - { minute: 240, glucose: 5.0 }
+                        - { minute: 300, glucose: 4.7 }
+                        - { minute: 360, glucose: 4.6 }
+                        - { minute: 420, glucose: 5.2 }
+                    - date: "2025-10-14"
+                      points:
+                        - { minute: 0, glucose: 6.5 }
+                        - { minute: 5, glucose: 6.3 }
+                        - { minute: 10, glucose: 6.2 }
+                        - { minute: 180, glucose: 5.6 }
+                        - { minute: 240, glucose: 5.1 }
+                        - { minute: 300, glucose: 4.8 }
+                        - { minute: 360, glucose: 4.7 }
+                        - { minute: 420, glucose: 5.3 }
+        '206':
+          description: Partial Content (requested preset exceeds available coverage)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DatasetDataResponse" }
+              example:
+                dataset: { dataset_id: "5e97c1a1-0c7d-4b3f-9a20-6a9e7815b2dc", nickname: "PatientB 11d" }
+                unit: "mmol/L"
+                meta:
+                  requested_preset: "14d"
+                  available_days: 9
+                  coverage_percent: 64.3
+                  resolution_min: 5
+                  warnings: ["Requested 14d but only 9 days available; results reflect available data."]
+                overlay:
+                  days:
+                    - date: "2025-10-06"
+                      points:
+                        - { minute: 0, glucose: 6.0 }
+                        - { minute: 5, glucose: 6.0 }
+                        # ...
+        '400':
+          description: Bad Request (invalid preset or parameters)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "Invalid preset; must be one of 24h, 7d, 14d" }
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found (unknown dataset_id)
+        '422':
+          description: Unprocessable Entity (no usable data for the requested preset)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "No usable data for the requested preset" }
+        '500':
+          description: Internal Server Error
+
+    delete:
+      tags: [datasets]
+      summary: Delete dataset
+      security: [ { ApiKeyAuth: [] } ]
+      parameters:
+        - in: path
+          name: dataset_id
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+
+  /analyze:
+    post:
+      tags: [analysis]
+      summary: Analyze dataset (synchronous)
+      description: >
+        Returns analysis-only results for the requested preset (24h/7d/14d): overall rating, trend/extrema annotations,
+        patterns, and short Summary/Interpretation texts. Does NOT return the data (use GET /datasets/{id}?preset=...).
+        Units are mmol/L. Resolution information matches the data endpoint via meta.resolution_min.
+      security: [ { ApiKeyAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ dataset_id, preset ]
+              properties:
+                dataset_id: { type: string }
+                preset:
+                  $ref: "#/components/schemas/Preset"
+                lang:
+                  type: string
+                  description: "BCP-47 language code (e.g., en, et, ru). Defaults to en."
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalyzeResponse" }
+              example:
+                unit: "mmol/L"
+                meta:
+                  requested_preset: "14d"
+                  available_days: 14
+                  coverage_percent: 100.0
+                  resolution_min: 5
+                  warnings: []
+                overall:
+                  category: "attention"
+                  score: 72.5
+                  reasons:
+                    - "Consistent early-morning downward trend on most days"
+                    - "Multiple low extrema near 04:45–05:30"
+                annotations:
+                  trends:
+                    - start_minute: 180
+                      end_minute: 420
+                      slope_mmol_l_per_hour: -0.45
+                      direction: "down"
+                      example_span: "03:00–07:00"
+                  extrema:
+                    - minute: 315
+                      value: 4.6
+                      kind: "min"
+                    - minute: 720
+                      value: 9.8
+                      kind: "max"
+                patterns:
+                  - key: "morning_downward_trend"
+                    name: "Consistent early-morning downward trend"
+                    severity: "moderate"
+                    summary: "Between 03:00–07:00 glucose decreases on most days."
+                    instances:
+                      - { date: "2025-10-13", start_minute: 180, end_minute: 420 }
+                      - { date: "2025-10-14", start_minute: 180, end_minute: 420 }
+                text:
+                  summary: "Early-morning decreases detected across multiple days."
+                  interpretation: "May reflect nocturnal insulin dynamics or evening factors. This is not a medical recommendation."
+        '206':
+          description: Partial Content (requested preset exceeds available coverage)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalyzeResponse" }
+              example:
+                unit: "mmol/L"
+                meta:
+                  requested_preset: "14d"
+                  available_days: 9
+                  coverage_percent: 64.3
+                  resolution_min: 5
+                  warnings: ["Requested 14d but only 9 days available; analysis reflects available data."]
+                overall:
+                  category: "attention"
+                  score: 68.0
+                  reasons:
+                    - "Limited data coverage reduces confidence"
+                annotations:
+                  trends: []
+                  extrema: []
+                patterns: []
+                text:
+                  summary: "Limited coverage; analyzed available 9 days."
+                  interpretation: "Interpret cautiously due to reduced coverage. Not a medical recommendation."
+        '400':
+          description: Bad Request (invalid preset or parameters)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "Invalid preset; must be one of 24h, 7d, 14d" }
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found (unknown dataset_id)
+        '422':
+          description: Unprocessable Entity (no usable data for the requested preset)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "No usable data for the requested preset" }
+        '500':
+          description: Internal Server Error
+
+  /analyze/explain:
+    post:
+      tags: [analysis]
+      summary: Generate natural language explanation of dataset analysis
+      description: >
+        Performs analysis on the dataset and generates a natural language explanation using an LLM.
+        This endpoint combines the /analyze functionality with LLM-powered explanation generation.
+        Requires OPENAI_API_KEY environment variable to be configured.
+        
+        The explanation is generated based on the overall rating, patterns, trends, and extrema
+        detected in the analysis. The style parameter controls the verbosity and focus of the explanation.
+        
+        Returns 200 for full coverage, 206 for partial coverage, and 503 if LLM service is not configured.
+      security: [ { ApiKeyAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExplainRequest" }
+            example:
+              dataset_id: "a9f42b3c-0bd1-4e0b-9e8a-8c2a1c1f5d77"
+              preset: "14d"
+              lang: "en"
+              style: "detailed"
+      responses:
+        '200':
+          description: OK (full coverage)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExplainResponse" }
+              example:
+                explanation:
+                  summary: "Your glucose levels show a consistent pattern of early morning decreases, with overall control in the attention range."
+                  interpretation: "The analysis reveals a recurring trend between 3:00 AM and 7:00 AM where glucose levels decrease steadily. This pattern appears on most days in the 14-day period. The lowest values (around 4.6 mmol/L) occur around 5:15 AM, while peak values (up to 9.8 mmol/L) are observed around midday. These fluctuations may indicate nocturnal insulin dynamics or the effects of evening meals and activities."
+                  recommendations:
+                    - "Monitor pre-bedtime glucose levels and evening meal timing"
+                    - "Consider discussing the early morning pattern with your healthcare provider"
+                    - "Track correlations between dinner timing, composition, and overnight glucose trends"
+                meta:
+                  coverage_percent: 100.0
+                  preset: "14d"
+                  lang: "en"
+                  style: "detailed"
+        '206':
+          description: Partial Content (requested preset exceeds available coverage)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExplainResponse" }
+              example:
+                explanation:
+                  summary: "Based on 9 days of data (64% coverage), your glucose shows some variability with limited pattern detection."
+                  interpretation: "The available data shows glucose levels generally within normal range, but the limited coverage (9 out of 14 requested days) reduces the confidence in pattern detection. Some variation is observed throughout the day, but insufficient data points prevent identification of strong recurring trends."
+                  recommendations:
+                    - "Continue monitoring to build a more complete picture"
+                    - "Additional data would help identify reliable patterns"
+                meta:
+                  coverage_percent: 64.3
+                  preset: "14d"
+                  lang: "en"
+                  style: "summary"
+        '400':
+          description: Bad Request (invalid preset, style, or parameters)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "Invalid style; must be one of detailed, summary, clinical" }
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found (unknown dataset_id)
+        '503':
+          description: Service Unavailable (LLM service not configured)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "LLM service is not configured. Please set OPENAI_API_KEY environment variable." }
+        '500':
+          description: Internal Server Error (LLM API call failed)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "Failed to generate explanation: API timeout" }
+
+  /analyze/explain-from-analysis:
+    post:
+      tags: [analysis]
+      summary: Generate natural language explanation from existing analysis results
+      description: >
+        Generates a natural language explanation from pre-computed analysis data using an LLM.
+        This endpoint is useful for generating multiple explanations with different styles or languages
+        without re-running the analysis.
+        
+        The analysis_data parameter should contain the output from the /analyze endpoint.
+        Requires OPENAI_API_KEY environment variable to be configured.
+        
+        This is more efficient than /analyze/explain when you want to generate multiple explanations
+        (e.g., in different languages or styles) from the same analysis results.
+      security: [ { ApiKeyAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExplainFromAnalysisRequest" }
+            example:
+              analysis_data:
+                unit: "mmol/L"
+                meta:
+                  requested_preset: "14d"
+                  available_days: 14
+                  coverage_percent: 100.0
+                  resolution_min: 5
+                overall:
+                  category: "attention"
+                  score: 72.5
+                  reasons:
+                    - "Consistent early-morning downward trend on most days"
+                annotations:
+                  trends:
+                    - start_minute: 180
+                      end_minute: 420
+                      slope_mmol_l_per_hour: -0.45
+                      direction: "down"
+                  extrema:
+                    - minute: 315
+                      value: 4.6
+                      kind: "min"
+                patterns:
+                  - key: "morning_downward_trend"
+                    name: "Consistent early-morning downward trend"
+                    severity: "moderate"
+                    summary: "Between 03:00–07:00 glucose decreases on most days."
+              lang: "en"
+              style: "summary"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExplainResponse" }
+              example:
+                explanation:
+                  summary: "Your glucose shows consistent early-morning decreases, requiring attention."
+                  interpretation: "Analysis of 14 days reveals a recurring downward trend between 3:00-7:00 AM on most days. Lowest values around 4.6 mmol/L occur near 5:15 AM, while peaks up to 9.8 mmol/L appear around midday. This pattern may relate to overnight insulin activity or evening factors."
+                  recommendations:
+                    - "Monitor pre-bedtime glucose levels"
+                    - "Discuss the early morning pattern with your healthcare provider"
+                    - "Track evening meal timing and composition"
+                meta:
+                  lang: "en"
+                  style: "summary"
+        '400':
+          description: Bad Request (missing analysis_data or invalid parameters)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "analysis_data is required" }
+        '401':
+          description: Unauthorized
+        '503':
+          description: Service Unavailable (LLM service not configured)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "LLM service is not configured. Please set OPENAI_API_KEY environment variable." }
+        '500':
+          description: Internal Server Error (LLM API call failed)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { detail: "Failed to generate explanation: Invalid model specified" }
+

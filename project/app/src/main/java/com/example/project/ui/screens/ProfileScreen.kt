@@ -64,7 +64,7 @@ fun ProfileScreen(
                 .padding(dimensionResource(id = R.dimen.padding_medium)),
             verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.padding_medium))
         ) {
-            userProfile?.let {
+            userProfile?.let { profile ->
                 Card(
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
@@ -88,32 +88,32 @@ fun ProfileScreen(
                                 .clip(CircleShape)
                         )
                         Text(
-                            text = it.name,
+                            text = profile.name,
                             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
                             maxLines = 1,
                             color = c.onSurface,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = it.email,
+                            text = profile.email,
                             style = MaterialTheme.typography.bodyMedium,
                             color = c.onSurfaceVariant
                         )
                     }
                 }
-            }
 
-            SectionCard(title = stringResource(id = R.string.personal_details_title)) {
-                KeyValueRow(stringResource(id = R.string.dob), stringResource(id = R.string.dob_value))
-                KeyValueRow(stringResource(id = R.string.phone), stringResource(id = R.string.phone_value))
-            }
+                SectionCard(title = stringResource(id = R.string.personal_details_title)) {
+                    KeyValueRow(stringResource(id = R.string.dob), profile.dateOfBirth)
+                    KeyValueRow(stringResource(id = R.string.phone), profile.phone)
+                }
 
-            SectionCard(title = stringResource(id = R.string.cgm_device_title)) {
-                KeyValueRow(stringResource(id = R.string.cgm_sensor), stringResource(id = R.string.cgm_sensor_value))
-            }
+                SectionCard(title = stringResource(id = R.string.cgm_device_title)) {
+                    KeyValueRow(stringResource(id = R.string.cgm_sensor), profile.cgmSensor)
+                }
 
-            SectionCard(title = stringResource(id = R.string.app_preferences_title)) {
-                KeyValueRow(stringResource(id = R.string.notifications), stringResource(id = R.string.notifications_value))
+                SectionCard(title = stringResource(id = R.string.app_preferences_title)) {
+                    KeyValueRow(stringResource(id = R.string.notifications), if (profile.notificationsEnabled) "Enabled" else "Disabled")
+                }
             }
 
             Spacer(Modifier.height(12.dp))
