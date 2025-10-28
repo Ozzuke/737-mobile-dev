@@ -1,5 +1,6 @@
 package com.example.project.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,13 +21,15 @@ import com.example.project.domain.model.GlucoseReading
 fun GlucoseWidget(
     modifier: Modifier = Modifier,
     height: Dp = 140.dp,
-    latestReading: GlucoseReading?
+    latestReading: GlucoseReading?,
+    onClick: () -> Unit
 ) {
     Surface(
         modifier = modifier.height(height),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.primaryContainer,
-        tonalElevation = 2.dp
+        tonalElevation = 2.dp,
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier.padding(12.dp),

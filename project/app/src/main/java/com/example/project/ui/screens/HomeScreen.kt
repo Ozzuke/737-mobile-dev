@@ -1,5 +1,7 @@
 package com.example.project.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -38,6 +40,12 @@ fun HomeScreen(
     viewModel: GlucoseViewModel = viewModel()
 ) {
     val latestReading by viewModel.latestReading.collectAsState()
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { viewModel.uploadCsv(it) }
+    }
 
     Scaffold(
         topBar = {
@@ -81,7 +89,8 @@ fun HomeScreen(
                 GlucoseWidget(
                     modifier = Modifier.weight(1f),
                     height = 140.dp,
-                    latestReading = latestReading
+                    latestReading = latestReading,
+                    onClick = { filePickerLauncher.launch("text/*") }
                 )
 
                 WidgetTile(modifier = Modifier.weight(1f), height = 140.dp, label = "Example Insulin")
