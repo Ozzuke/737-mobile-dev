@@ -1,7 +1,8 @@
 package com.example.project.ui.navigation
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -14,6 +15,8 @@ import com.example.project.ui.screens.ProfileScreen
 import com.example.project.ui.screens.UploadScreen
 import com.example.project.ui.viewmodels.CgmApiViewModel
 import com.example.project.ui.viewmodels.GlucoseViewModel
+import com.example.project.ui.viewmodels.MainViewModel
+import com.example.project.ui.viewmodels.MainViewModelFactory
 
 sealed class Screen(val route: String) {
     data object Home : Screen("home")
@@ -23,11 +26,16 @@ sealed class Screen(val route: String) {
     data object Analysis : Screen("analysis/{datasetId}") {
         fun createRoute(datasetId: String) = "analysis/$datasetId"
     }
+    data object LLMAnalysis : Screen("llm-analysis/{datasetId}") {
+        fun createRoute(datasetId: String) = "llm-analysis/$datasetId"
+    }
 }
 
 @Composable
 fun AppNav() {
     val navController = rememberNavController()
+    var showOfflineDisclaimer by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Get application instance for dependency injection
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -49,6 +57,14 @@ fun AppNav() {
         )
     )
 
+    val mainViewModel: MainViewModel = viewModel(
+        factory = MainViewModelFactory(
+            repository = application.cgmApiRepository,
+            preferencesRepository = application.preferencesRepository,
+            context = context.applicationContext
+        )
+    )
+
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route
@@ -56,11 +72,30 @@ fun AppNav() {
         composable(Screen.Home.route) {
             HomeScreen(
                 onAddClick = { navController.navigate(Screen.Upload.route) },
-                onSettingsClick = { /* TODO settings */ },
+                onSettingsClick = { /* TODO: Settings screen */ },
                 onInfoClick = { navController.navigate(Screen.Datasets.route) },
                 onProfileClick = { navController.navigate(Screen.Profile.route) },
-                viewModel = glucoseViewModel
+                onStatusClick = { datasetId ->
+                    navController.navigate(Screen.LLMAnalysis.createRoute(datasetId))
+                },
+                onGraphClick = { datasetId, _ ->
+                    // For now, clicking graph also opens analysis
+                    // TODO: Create dedicated metrics screen if needed
+                    navController.navigate(Screen.Analysis.createRoute(datasetId))
+                },
+                onOfflineClick = {
+                    showOfflineDisclaimer = true
+                },
+                mainViewModel = mainViewModel
             )
+
+            // Show offline disclaimer dialog
+            if (showOfflineDisclaimer) {
+                com.example.project.ui.components.DisclaimerDialog(
+                    onDismiss = { showOfflineDisclaimer = false },
+                    showOfflineWarning = true
+                )
+            }
         }
         composable(Screen.Profile.route) {
             ProfileScreen(onBackClick = { navController.popBackStack() })
@@ -75,7 +110,19 @@ fun AppNav() {
             DatasetsScreen(
                 onBackClick = { navController.popBackStack() },
                 onDatasetClick = { datasetId ->
+                    // Set active dataset and refresh home screen, then show analysis
+                    coroutineScope.launch {
+                        application.preferencesRepository.setActiveDatasetId(datasetId)
+                        mainViewModel.fetchLatestData()
+                    }
                     navController.navigate(Screen.Analysis.createRoute(datasetId))
+                },
+                onSetActiveDataset = { datasetId ->
+                    // Set active dataset and refresh home screen
+                    coroutineScope.launch {
+                        application.preferencesRepository.setActiveDatasetId(datasetId)
+                        mainViewModel.fetchLatestData()
+                    }
                 },
                 viewModel = cgmApiViewModel
             )
@@ -88,6 +135,19 @@ fun AppNav() {
         ) { backStackEntry ->
             val datasetId = backStackEntry.arguments?.getString("datasetId") ?: ""
             AnalysisScreen(
+                datasetId = datasetId,
+                onBackClick = { navController.popBackStack() },
+                viewModel = cgmApiViewModel
+            )
+        }
+        composable(
+            route = Screen.LLMAnalysis.route,
+            arguments = listOf(
+                navArgument("datasetId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val datasetId = backStackEntry.arguments?.getString("datasetId") ?: ""
+            com.example.project.ui.screens.LLMAnalysisScreen(
                 datasetId = datasetId,
                 onBackClick = { navController.popBackStack() },
                 viewModel = cgmApiViewModel

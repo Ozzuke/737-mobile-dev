@@ -110,6 +110,26 @@ class CgmApiViewModel(
     }
 
     /**
+     * Delete a dataset
+     */
+    fun deleteDataset(datasetId: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.deleteDataset(datasetId)
+                .onSuccess {
+                    // Refresh the datasets list after deletion
+                    fetchDatasets()
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    _datasetsState.value = UiState.Error(
+                        message = "Failed to delete dataset: ${getErrorMessage(error)}",
+                        exception = error
+                    )
+                }
+        }
+    }
+
+    /**
      * Get user-friendly error message from exception
      */
     private fun getErrorMessage(error: Throwable): String {

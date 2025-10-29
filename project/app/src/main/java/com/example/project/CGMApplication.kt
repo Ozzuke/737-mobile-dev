@@ -2,6 +2,7 @@ package com.example.project
 
 import android.app.Application
 import com.example.project.data.local.GlucoseDatabase
+import com.example.project.data.local.PreferencesRepository
 import com.example.project.data.remote.api.RetrofitClient
 import com.example.project.data.remote.repository.CgmApiRepositoryImpl
 import com.example.project.data.repository.GlucoseCsvRepository
@@ -33,5 +34,10 @@ class CGMApplication : Application() {
     // CGM API Repository (remote API)
     val cgmApiRepository: CgmApiRepository by lazy {
         CgmApiRepositoryImpl(RetrofitClient.apiService, applicationContext)
+    }
+
+    // Preferences Repository (DataStore)
+    val preferencesRepository: PreferencesRepository by lazy {
+        PreferencesRepository(applicationContext)
     }
 }

@@ -80,4 +80,7 @@ dependencies {
     implementation(libs.moshi)
     implementation(libs.moshi.kotlin)
     ksp(libs.moshi.codegen)
+
+    // DataStore for preferences
+    implementation(libs.androidx.datastore.preferences)
 }

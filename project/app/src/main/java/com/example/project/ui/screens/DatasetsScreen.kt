@@ -1,17 +1,23 @@
 package com.example.project.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,6 +31,8 @@ import com.example.project.ui.viewmodels.CgmApiViewModel
 /**
  * Screen displaying datasets from the CGM API
  * Shows loading state, error handling, and list of datasets
+ * - Click dataset to view analysis
+ * - Long press to set as active dataset for home screen
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +40,7 @@ fun DatasetsScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
     onDatasetClick: (String) -> Unit = {},
+    onSetActiveDataset: (String) -> Unit = {},
     viewModel: CgmApiViewModel = viewModel()
 ) {
     val datasetsState by viewModel.datasetsState.collectAsState()
@@ -87,7 +96,11 @@ fun DatasetsScreen(
                 is UiState.Success -> {
                     DatasetsList(
                         datasets = state.data,
-                        onDatasetClick = onDatasetClick
+                        onDatasetClick = onDatasetClick,
+                        onSetActiveDataset = onSetActiveDataset,
+                        onDeleteDataset = { datasetId ->
+                            viewModel.deleteDataset(datasetId)
+                        }
                     )
                 }
                 is UiState.Error -> {
@@ -104,11 +117,16 @@ fun DatasetsScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DatasetsList(
     datasets: List<DatasetSummary>,
-    onDatasetClick: (String) -> Unit
+    onDatasetClick: (String) -> Unit,
+    onSetActiveDataset: (String) -> Unit,
+    onDeleteDataset: (String) -> Unit
 ) {
+    var showDeleteDialog by remember { mutableStateOf<String?>(null) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -117,69 +135,115 @@ private fun DatasetsList(
         items(datasets, key = { it.datasetId }) { dataset ->
             DatasetCard(
                 dataset = dataset,
-                onClick = { onDatasetClick(dataset.datasetId) }
+                onClick = { onDatasetClick(dataset.datasetId) },
+                onLongClick = { onSetActiveDataset(dataset.datasetId) },
+                onDelete = { showDeleteDialog = dataset.datasetId }
             )
         }
     }
+
+    // Delete confirmation dialog
+    showDeleteDialog?.let { datasetId ->
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = null },
+            title = { Text("Delete Dataset?") },
+            text = { Text("Are you sure you want to delete this dataset from the server? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteDataset(datasetId)
+                        showDeleteDialog = null
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DatasetCard(
     dataset: DatasetSummary,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = dataset.nickname,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column {
-                    Text(
-                        text = "Start: ${dataset.startDate.take(10)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "End: ${dataset.endDate.take(10)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Text(
+                    text = dataset.nickname,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Start: ${dataset.startDate.take(10)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "End: ${dataset.endDate.take(10)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "${dataset.rowCount} readings",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "${dataset.samplingIntervalMin} min interval",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "${dataset.rowCount} readings",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "${dataset.samplingIntervalMin} min interval",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            }
+
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete dataset",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }

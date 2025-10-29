@@ -55,4 +55,11 @@ interface CgmApiRepository {
         nickname: String?,
         unit: String?
     ): Result<DatasetSummary>
+
+    /**
+     * Delete a dataset
+     * @param datasetId The dataset ID to delete
+     * @return Result containing true if successful, or error
+     */
+    suspend fun deleteDataset(datasetId: String): Result<Boolean>
 }

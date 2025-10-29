@@ -62,4 +62,14 @@ interface CgmApiService {
     suspend fun analyzeDataset(
         @Body request: AnalyzeRequestDto
     ): Response<AnalyzeResponseDto>
+
+    /**
+     * Delete a dataset
+     * DELETE /datasets/{dataset_id}
+     * @param datasetId The dataset ID to delete
+     */
+    @DELETE("datasets/{dataset_id}")
+    suspend fun deleteDataset(
+        @Path("dataset_id") datasetId: String
+    ): Response<Unit>
 }

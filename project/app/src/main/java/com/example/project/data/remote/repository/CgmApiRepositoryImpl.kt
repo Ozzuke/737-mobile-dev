@@ -185,6 +185,19 @@ class CgmApiRepositoryImpl(
         return result ?: "upload.csv"
     }
 
+    override suspend fun deleteDataset(datasetId: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.deleteDataset(datasetId)
+            if (response.isSuccessful || response.code() == 204) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception(getErrorMessage(response)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     /**
      * Extract error message from HTTP response
      */
