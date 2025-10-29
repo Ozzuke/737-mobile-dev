@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -82,21 +83,21 @@ fun UploadScreen(
             modifier = Modifier
                 .padding(inner)
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(dimensionResource(id = R.dimen.padding_medium)),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             if (uploadStatus is UiState.Loading) {
                 CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_large)))
                 Text(stringResource(id = R.string.upload_uploading))
             } else {
                 Button(onClick = { filePickerLauncher.launch("*/*") }) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(id = R.string.upload_button_description))
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_small)))
                     Text(stringResource(id = R.string.upload_button_label))
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_large)))
                 Text(
                     text = stringResource(id = R.string.upload_instructions),
                     textAlign = TextAlign.Center

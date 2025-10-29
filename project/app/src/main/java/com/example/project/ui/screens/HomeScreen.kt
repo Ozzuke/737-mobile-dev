@@ -21,11 +21,12 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.project.ui.components.GlucoseWidget
 import com.example.project.ui.components.WidgetTile
 import com.example.project.ui.theme.ProjectTheme
@@ -83,21 +84,21 @@ fun HomeScreen(
         Column(
             Modifier
                 .padding(inner)
-                .padding(16.dp)
+                .padding(dimensionResource(id = R.dimen.padding_medium))
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.spacing_large))
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.spacing_large))) {
                 GlucoseWidget(
                     modifier = Modifier.weight(1f),
-                    height = 140.dp,
+                    height = dimensionResource(id = R.dimen.widget_height_small),
                     latestReading = latestReading,
                     onClick = { filePickerLauncher.launch("text/*") }
                 )
 
-                WidgetTile(modifier = Modifier.weight(1f), height = 140.dp, label = stringResource(id = R.string.example_insulin_label))
+                WidgetTile(modifier = Modifier.weight(1f), height = dimensionResource(id = R.dimen.widget_height_small), label = stringResource(id = R.string.example_insulin_label))
             }
-            WidgetTile(modifier = Modifier.fillMaxWidth(), height = 200.dp, label = stringResource(id = R.string.example_wide_label))
+            WidgetTile(modifier = Modifier.fillMaxWidth(), height = dimensionResource(id = R.dimen.widget_height_large), label = stringResource(id = R.string.example_wide_label))
         }
     }
 }

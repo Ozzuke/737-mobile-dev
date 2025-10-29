@@ -76,15 +76,15 @@ fun ProfileScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
+                            .padding(dimensionResource(id = R.dimen.padding_card_inner)),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.spacing_medium))
                     ) {
                         Image(
                             imageVector = Icons.Default.AccountCircle,
                             contentDescription = stringResource(id = R.string.user_avatar_description),
                             modifier = Modifier
-                                .size(96.dp)
+                                .size(dimensionResource(id = R.dimen.icon_size_xlarge))
                                 .clip(CircleShape)
                         )
                         Text(
@@ -116,7 +116,7 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(dimensionResource(id = R.dimen.spacing_medium)))
             Text(
                 text = stringResource(id = R.string.app_version),
                 style = MaterialTheme.typography.bodySmall,
