@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -21,6 +22,7 @@ import com.example.project.ui.components.ErrorView
 import com.example.project.ui.components.LoadingView
 import com.example.project.ui.UiState
 import com.example.project.ui.viewmodels.CgmApiViewModel
+import com.example.project.R
 
 /**
  * Screen displaying datasets from the CGM API
@@ -45,12 +47,12 @@ fun DatasetsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Remote Datasets") },
+                title = { Text(stringResource(id = R.string.datasets_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(id = R.string.back_button_description),
                             tint = colorScheme.onPrimary
                         )
                     }
@@ -59,7 +61,7 @@ fun DatasetsScreen(
                     IconButton(onClick = { viewModel.retryFetchDatasets() }) {
                         Icon(
                             Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(id = R.string.refresh_button_description),
                             tint = colorScheme.onPrimary
                         )
                     }
@@ -82,7 +84,7 @@ fun DatasetsScreen(
                     // Initial state - could show a welcome message
                 }
                 is UiState.Loading -> {
-                    LoadingView("Loading datasets...")
+                    LoadingView(stringResource(id = R.string.loading_datasets))
                 }
                 is UiState.Success -> {
                     DatasetsList(
@@ -97,7 +99,7 @@ fun DatasetsScreen(
                     )
                 }
                 is UiState.Empty -> {
-                    EmptyView(message = "No datasets available")
+                    EmptyView(message = stringResource(id = R.string.no_datasets_available))
                 }
             }
         }
@@ -157,25 +159,25 @@ private fun DatasetCard(
             ) {
                 Column {
                     Text(
-                        text = "Start: ${dataset.startDate.take(10)}",
+                        text = stringResource(id = R.string.dataset_start_label, dataset.startDate.take(10)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "End: ${dataset.endDate.take(10)}",
+                        text = stringResource(id = R.string.dataset_end_label, dataset.endDate.take(10)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "${dataset.rowCount} readings",
+                        text = stringResource(id = R.string.dataset_readings_count, dataset.rowCount),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "${dataset.samplingIntervalMin} min interval",
+                        text = stringResource(id = R.string.dataset_interval_label, dataset.samplingIntervalMin),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

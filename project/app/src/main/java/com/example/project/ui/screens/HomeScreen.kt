@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -29,6 +30,7 @@ import com.example.project.ui.components.GlucoseWidget
 import com.example.project.ui.components.WidgetTile
 import com.example.project.ui.theme.ProjectTheme
 import com.example.project.ui.viewmodels.GlucoseViewModel
+import com.example.project.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,21 +53,21 @@ fun HomeScreen(
         topBar = {
             val c = MaterialTheme.colorScheme
             CenterAlignedTopAppBar(
-                title = { Text("Dashboard") },
+                title = { Text(stringResource(id = R.string.dashboard_title)) },
                 navigationIcon = {
                     IconButton(onClick = onAddClick) {
-                        Icon(Icons.Outlined.Add, contentDescription = "Add", tint = c.onPrimary)
+                        Icon(Icons.Outlined.Add, contentDescription = stringResource(id = R.string.add_button_description), tint = c.onPrimary)
                     }
                 },
                 actions = {
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = c.onPrimary)
+                        Icon(Icons.Outlined.Settings, contentDescription = stringResource(id = R.string.settings_button_description), tint = c.onPrimary)
                     }
                     IconButton(onClick = onInfoClick) {
-                        Icon(Icons.Outlined.Info, contentDescription = "Info", tint = c.onPrimary)
+                        Icon(Icons.Outlined.Info, contentDescription = stringResource(id = R.string.info_button_description), tint = c.onPrimary)
                     }
                     IconButton(onClick = onProfileClick) {
-                        Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile", tint = c.onPrimary)
+                        Icon(Icons.Outlined.AccountCircle, contentDescription = stringResource(id = R.string.profile_button_description), tint = c.onPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -93,9 +95,9 @@ fun HomeScreen(
                     onClick = { filePickerLauncher.launch("text/*") }
                 )
 
-                WidgetTile(modifier = Modifier.weight(1f), height = 140.dp, label = "Example Insulin")
+                WidgetTile(modifier = Modifier.weight(1f), height = 140.dp, label = stringResource(id = R.string.example_insulin_label))
             }
-            WidgetTile(modifier = Modifier.fillMaxWidth(), height = 200.dp, label = "Example (wide)")
+            WidgetTile(modifier = Modifier.fillMaxWidth(), height = 200.dp, label = stringResource(id = R.string.example_wide_label))
         }
     }
 }

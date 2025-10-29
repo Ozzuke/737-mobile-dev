@@ -13,11 +13,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.project.ui.UiState
 import com.example.project.ui.viewmodels.GlucoseViewModel
+import com.example.project.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,11 +43,11 @@ fun UploadScreen(
     LaunchedEffect(uploadStatus) {
         when (val state = uploadStatus) {
             is UiState.Success -> {
-                Toast.makeText(context, "Upload successful!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.upload_success), Toast.LENGTH_SHORT).show()
                 viewModel.resetUploadStatus() // Reset state after showing toast
             }
             is UiState.Error -> {
-                Toast.makeText(context, "Upload failed: ${state.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.upload_failed, state.message), Toast.LENGTH_LONG).show()
                 viewModel.resetUploadStatus() // Reset state
             }
             else -> {
@@ -57,12 +59,12 @@ fun UploadScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Upload") },
+                title = { Text(stringResource(id = R.string.upload_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(id = R.string.back_button_description),
                             tint = c.onPrimary
                         )
                     }
@@ -87,16 +89,16 @@ fun UploadScreen(
             if (uploadStatus is UiState.Loading) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Uploading, please wait...")
+                Text(stringResource(id = R.string.upload_uploading))
             } else {
                 Button(onClick = { filePickerLauncher.launch("*/*") }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Upload")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(id = R.string.upload_button_description))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Upload from CSV")
+                    Text(stringResource(id = R.string.upload_button_label))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Upload a CSV file with glucose readings. The file will be saved locally and sent to the remote server for analysis.",
+                    text = stringResource(id = R.string.upload_instructions),
                     textAlign = TextAlign.Center
                 )
             }

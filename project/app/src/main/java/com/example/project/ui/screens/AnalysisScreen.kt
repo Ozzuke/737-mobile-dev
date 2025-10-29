@@ -10,9 +10,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.project.R
 import com.example.project.domain.model.*
 import com.example.project.ui.components.EmptyView
 import com.example.project.ui.components.ErrorView
@@ -51,12 +53,12 @@ fun AnalysisScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Analysis Results") },
+                title = { Text(stringResource(id = R.string.analysis_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(id = R.string.back_button_description),
                             tint = colorScheme.onPrimary
                         )
                     }
@@ -78,7 +80,7 @@ fun AnalysisScreen(
                     // Initial state
                 }
                 is UiState.Loading -> {
-                    LoadingView("Analyzing dataset...")
+                    LoadingView(stringResource(id = R.string.analyzing_dataset))
                 }
                 is UiState.Success -> {
                     AnalysisContent(
@@ -94,7 +96,7 @@ fun AnalysisScreen(
                     )
                 }
                 is UiState.Empty -> {
-                    EmptyView("No analysis data available")
+                    EmptyView(stringResource(id = R.string.no_analysis_data))
                 }
             }
         }
@@ -168,7 +170,7 @@ private fun PresetSelector(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Time Range",
+                text = stringResource(id = R.string.time_range_label),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
