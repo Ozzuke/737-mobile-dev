@@ -13,6 +13,10 @@
     <string name="app_preferences_title">App preferences</string>
     <string name="notifications">Notifications</string>
     <string name="app_version">CGM Buddy • v1.0.0</string>
+    <string name="guest_name">Guest</string>
+    <string name="guest_email">No email provided</string>
+    <string name="guest_member_since">Member since —</string>
+    <string name="unknown">—</string>
 
     <!-- Home Screen -->
     <string name="dashboard_title">Dashboard</string>
@@ -55,4 +59,13 @@
     <!-- Common -->
     <string name="enabled">Enabled</string>
     <string name="disabled">Disabled</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_title">Upload</string>
+    <string name="upload_success">Upload successful!</string>
+    <string name="upload_failed">Upload failed: %1$s</string>
+    <string name="upload_uploading">Uploading, please wait…</string>
+    <string name="upload_button_label">Upload from CSV</string>
+    <string name="upload_button_description">Upload</string>
+    <string name="upload_instructions">Upload a CSV file with glucose readings. The file will be saved locally and sent to the remote server for analysis.</string>
 </resources>
