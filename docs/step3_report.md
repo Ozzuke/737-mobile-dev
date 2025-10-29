@@ -1,135 +1,103 @@
-## Which API was chosen and why
+# Step 3: API Integration Report
 
-* **API:** Custom CGM Analyzer API at `http://cgm.cloud.ut.ee/api/v1`
-* **Authentication:** API Key via `X-API-Key` header
-* **Documentation:** OpenAPI 3.0 spec (`docs/backend_openapi_v1.yaml`)
-* **Rationale:** Custom backend provides exact data structures needed (datasets, glucose overlays, AI analysis); demonstrates full-stack integration
+## API Selection & Endpoints
 
----
-
-## Example API endpoint used
-
-### GET /datasets
-* **Purpose:** List all uploaded CGM datasets
-* **Response:** Array of datasets with `dataset_id`, `nickname`, date range, row count, sampling interval
-* **UI usage:** `DatasetsScreen` displays list; clicking opens analysis
-
-### POST /analyze
-* **Purpose:** Get AI-powered glucose analysis for a dataset
-* **Request:** `dataset_id`, `preset` (24h/7d/14d), `lang`
-* **Response:** Overall rating, detected patterns, trends, extrema, AI summary
-* **UI usage:** `AnalysisScreen` shows comprehensive analysis with color-coded severity
-
-### Other endpoints
-* `GET /healthz` - API availability check
-* `GET /datasets/{id}?preset={preset}` - Glucose overlay data for charts
-* `POST /datasets` - CSV upload (multipart/form-data)
+* **Chosen API:** CGM Analyzer API (`http://cgm.cloud.ut.ee/api/v1`)
+* **Rationale:** Domain-relevant medical data API with complex JSON structures, multiple CRUD operations, authentication requirements, and AI integration - demonstrates real-world production API patterns.
+* **Key Endpoints Used:**
+  * `GET /healthz` - Health check
+  * `GET /datasets` - List all datasets with metadata
+  * `GET /datasets/{id}?preset=24h|7d|14d` - Fetch glucose data points for visualization
+  * `POST /analyze` - Rule-based pattern detection (trends, extrema, patterns)
+  * `POST /analyze/explain` - LLM-powered insights with recommendations
+  * `POST /datasets` - Multipart file upload (CSV)
+  * `DELETE /datasets/{id}` - Remove dataset
+* **Authentication:** API key via `X-API-Key` header, injected automatically by `ApiKeyInterceptor`.
 
 ---
 
-## Error handling strategy
+## Technical Implementation
 
-### Network-level errors
-* **No internet:** Catches `UnknownHostException`, displays "No internet connection" with retry button
-* **Timeout:** OkHttp 30-second timeout, shows "Request timeout" message
-* **UI state pattern:** Sealed `UiState<T>` class with `Idle`, `Loading`, `Success`, `Error`, `Empty` states
-* **Loading:** `CircularProgressIndicator` with descriptive message
-* **Error:** Red card with user-friendly message + retry button
-* **No crashes:** All exceptions caught in repository, converted to `UiState.Error`
-
-### HTTP status codes
-* **401:** "Authentication failed. Please check your API key."
-* **404:** "Resource not found."
-* **500/503:** "Server error. Please try again later."
-
----
-
-## Technical implementation
-
-### Architecture layers
-1. **DTOs** (`data/remote/dto/`): Match OpenAPI spec with `@JsonClass` for Moshi code generation
-2. **Domain Models** (`domain/model/`): UI-friendly representations with enums
-3. **Mappers** (`data/remote/mapper/`): Extension functions converting DTO → Domain
-4. **Retrofit Service** (`data/remote/api/CgmApiService.kt`): Interface with suspend functions
-5. **API Key Interceptor** (`data/remote/interceptor/ApiKeyInterceptor.kt`): Adds `X-API-Key` header to all requests
-6. **Repository Interface** (`domain/repository/CgmApiRepository.kt`): Abstraction for testability
-7. **Repository Impl** (`data/remote/repository/CgmApiRepositoryImpl.kt`): Executes API calls with `withContext(Dispatchers.IO)`, maps DTOs, wraps in `Result<T>`, converts HTTP errors to user messages
-8. **ViewModel** (`ui/viewmodels/CgmApiViewModel.kt`): Manages `StateFlow<UiState<T>>`, launches coroutines with `viewModelScope`
-9. **Screens** (`ui/screens/`): Observes ViewModel state with `collectAsState()`, renders Loading/Error/Success/Empty states
-
-### Dependencies added
-```kotlin
-// Retrofit + OkHttp + Moshi
-implementation("com.squareup.retrofit2:retrofit:2.11.0")
-implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
-implementation("com.squareup.okhttp3:okhttp:4.12.0")
-implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-implementation("com.squareup.moshi:moshi:1.15.1")
-implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
-ksp("com.squareup.moshi:moshi-kotlin-codegen:1.15.1")
-```
-
-### Dependency injection
-* **Application class** (`CGMApplication.kt`): Provides singleton repositories
-* **ViewModel factories:** Inject repositories into ViewModels
-* **Compose:** Retrieves Application instance, creates ViewModels with factories
+* **HTTP Client:** Retrofit 2.9.0 with Moshi converter for JSON serialization/deserialization
+* **Async Handling:** Kotlin Coroutines (`suspend` functions) with `Dispatchers.IO` for network operations
+* **Architecture:** Repository pattern - `UI (Compose) → ViewModel → Repository → Retrofit → API`
+* **State Management:** `StateFlow<UiState<T>>` with sealed class (`Idle`, `Loading`, `Success`, `Error`, `Empty`)
+* **Data Models:**
+  * DTOs (`@JsonClass(generateAdapter = true)`) with `@Json(name = "...")` for API layer
+  * Domain models for business logic layer
+  * Mapper functions convert DTOs to domain models in Repository
+* **Network Configuration:**
+  * `LoggingInterceptor` for debugging (logs full request/response)
+  * `ApiKeyInterceptor` for authentication
+  * 30-second timeouts for connect/read operations
 
 ---
 
-## Challenges and solutions
+## Challenges and Solutions
 
-* **Type-safe JSON parsing with nested structures**
-  * *Challenge:* OpenAPI spec has deeply nested responses; manual parsing error-prone
-  * *Solution:* Moshi with Kotlin code generation (`@JsonClass(generateAdapter = true)`); created comprehensive DTO hierarchy matching spec exactly
+* **Complex nested JSON structures**
+  * *Challenge:* API returns deeply nested responses (e.g., `AnalyzeResponseDto` with `annotations.trends[]`, `patterns[]`, `meta`, `overall`).
+  * *Solution:* Created hierarchical DTO structure with Moshi code generation; separate data classes for each nesting level; mapper functions flatten to simpler domain models for UI consumption.
 
-* **Cleartext HTTP communication**
-  * *Challenge:* Android blocks HTTP by default
-  * *Solution:* Created `network_security_config.xml` allowing cleartext for `cgm.cloud.ut.ee` only
+* **Error handling without crashes**
+  * *Challenge:* Network failures, HTTP errors, timeouts, and missing API keys must not crash the app.
+  * *Solution:* Repository wraps all calls in `try-catch`, returns `Result<T>`; specific detection for `UnknownHostException` (no internet), timeout messages, and HTTP status codes (401, 404, 422, 500, 503); ViewModel converts to `UiState.Error` with user-friendly messages; all error states include retry buttons.
 
-* **User-friendly error messages**
-  * *Challenge:* Raw exceptions (`SocketTimeoutException`, `UnknownHostException`) are technical
-  * *Solution:* Error mapping in ViewModel checks exception type; converts to plain language ("No internet connection", "Request timeout")
+* **Multi-endpoint orchestration**
+  * *Challenge:* Home screen needs data from 3 endpoints (`getDatasets` → `getDatasetData` → `analyzeDataset`) to display complete view.
+  * *Solution:* `MainViewModel.fetchLatestData()` chains calls sequentially using coroutine `onSuccess` blocks; updates individual state properties as each call completes; UI observes combined state object.
 
-* **Loading states during async operations**
-  * *Challenge:* User sees blank screen while data fetches
-  * *Solution:* Implemented `UiState` sealed class with `Loading` state; UI renders `CircularProgressIndicator` with descriptive message
+* **Loading state feedback**
+  * *Challenge:* Users need to know when data is being fetched vs when it's ready.
+  * *Solution:* Every screen implements `UiState.Loading` with contextual messages ("Loading datasets...", "Analyzing...", "Generating AI insights..."); `CircularProgressIndicator` with text labels; state transitions are immediate and visible.
 
-* **Repository abstraction vs direct API calls**
-  * *Challenge:* ViewModels directly calling Retrofit couples UI to network implementation
-  * *Solution:* Repository pattern with interface in domain layer; enables mock repositories for unit tests
+* **Authentication management**
+  * *Challenge:* API key must be included in every request without manual repetition.
+  * *Solution:* `ApiKeyInterceptor` implements `Interceptor.intercept()`, reads key from storage, adds `X-API-Key` header to all requests automatically; centralized auth logic prevents forgetting keys on new endpoints.
 
-* **Shared composables for state views**
-  * *Challenge:* Loading/error/empty states duplicated across screens
-  * *Solution:* Extracted `LoadingView`, `ErrorView`, `EmptyView` to `ui/components/StateViews.kt`; reusable across screens
-
-* **Analysis screen preset switching**
-  * *Challenge:* User wants to see 24h/7d/14d analysis without navigating away
-  * *Solution:* Local state in `AnalysisScreen` for selected preset; `LaunchedEffect` re-triggers API call when preset changes
-
-* **Educational disclaimer compliance**
-  * *Challenge:* App provides medical data but must clarify it's not medical advice
-  * *Solution:* Created `DisclaimerDialog` shown on app launch; blocks usage until acknowledged
+* **Real-time data visualization**
+  * *Challenge:* Display glucose graph with proper axes, grid lines, and color-coded ranges from API data.
+  * *Solution:* `DatasetDataResponseDto` provides `overlay.days[].points[]` with minute-of-day timestamps; UI calculates Y-axis ticks dynamically based on glucose range; horizontal grid lines drawn at tick intervals; points colored by glucose value (low/in-range/high).
 
 ---
 
-## Screenshots / evidence
+## Error Handling Strategy
 
-### Datasets Screen
-* **Loading:** Circular progress with "Loading datasets..." message
-* **Success:** List of dataset cards (nickname, dates, row count, interval)
-* **Error:** Red error card with user-friendly message + retry button
-* **Empty:** "No datasets available" centered text
+* **Network Errors:**
+  * `UnknownHostException` → "No internet connection. Please check your network."
+  * Timeout → "Request timeout. Please try again."
+  * Generic network failures → "Network error occurred."
 
-### Analysis Screen
-* **Overall Rating Card:** Color-coded by category (green=GOOD, yellow=ATTENTION, red=URGENT), score, reasons
-* **Patterns Card:** Pattern name, severity badge, summary, instance count
-* **Trends Card:** Direction (UP/DOWN), time span, slope
-* **Extrema Card:** MIN/MAX with glucose value, unit, time
-* **Preset Selector:** Three `FilterChip` buttons (24h/7d/14d)
+* **HTTP Status Codes:**
+  * `401 Unauthorized` → "Authentication failed. Please check your API key."
+  * `404 Not Found` → "Resource not found."
+  * `422 Unprocessable Entity` → "Validation error: [error body details]"
+  * `500 Internal Server Error` → "Server error. Please try again later."
+  * `503 Service Unavailable` → "Service unavailable. Please try again later."
 
-### Disclaimer Dialog
-* **Icon:** Large warning icon
-* **Title:** "Important Disclaimer"
-* **Sections:** Educational Use Only, Not Medical Advice, Consult Healthcare Professionals, No Liability
-* **Button:** "I Understand"
-* **Shown on app launch**
+* **Recovery Mechanisms:**
+  * All error states include retry buttons
+  * Connectivity check before critical operations
+  * Graceful degradation (e.g., show analysis without LLM explanation if 503)
+  * No app crashes - all exceptions caught and converted to user-friendly messages
+
+---
+
+## Example API Call Flow
+
+**User opens Datasets screen:**
+1. UI calls `viewModel.fetchDatasets()`
+2. ViewModel sets `_datasetsState.value = UiState.Loading`
+3. Repository calls `apiService.getDatasets()` (Retrofit)
+4. `ApiKeyInterceptor` adds `X-API-Key` header
+5. Backend responds with JSON: `{ "items": [...] }`
+6. Moshi parses JSON to `DatasetsResponseDto`
+7. Repository maps DTOs to `List<DatasetSummary>`, returns `Result.success(datasets)`
+8. ViewModel updates `_datasetsState.value = UiState.Success(datasets)`
+9. UI observes StateFlow change, recomposes to show dataset list
+
+**If network error at step 5:**
+- Repository catches exception, returns `Result.failure(error)`
+- ViewModel updates `_datasetsState.value = UiState.Error("No internet connection")`
+- UI shows error view with retry button
+- User clicks retry → back to step 1
