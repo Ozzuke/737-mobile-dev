@@ -66,3 +66,13 @@ fun PatternInstanceDto.toDomain(): PatternInstance {
         endMinute = endMinute
     )
 }
+
+fun ExplainResponseDto.toDomain(): com.example.project.domain.model.LLMExplanation {
+    return com.example.project.domain.model.LLMExplanation(
+        summary = explanation.summary,
+        interpretation = explanation.interpretation,
+        recommendations = explanation.recommendations,
+        coveragePercent = meta.coveragePercent,
+        preset = meta.preset
+    )
+}

@@ -44,6 +44,21 @@ interface CgmApiRepository {
     ): Result<AnalysisResult>
 
     /**
+     * Generate LLM explanation for a dataset
+     * @param datasetId The dataset ID
+     * @param preset The preset (24h, 7d, or 14d)
+     * @param lang The language code (default: en)
+     * @param style The explanation style (detailed, summary, or clinical)
+     * @return Result containing LLM explanation, or error
+     */
+    suspend fun explainDataset(
+        datasetId: String,
+        preset: String,
+        lang: String = "en",
+        style: String = "detailed"
+    ): Result<com.example.project.domain.model.LLMExplanation>
+
+    /**
      * Upload a CGM dataset from a file URI
      * @param fileUri The URI of the file to upload
      * @param nickname An optional nickname for the dataset

@@ -16,11 +16,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.project.domain.model.DatasetData
 import com.example.project.domain.model.GlucosePoint
 import kotlin.math.max
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * Glucose graph component showing glucose levels over time
@@ -127,26 +130,82 @@ private fun GlucoseGraph(
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
-        val padding = 40f
+        val leftPadding = 60f  // More space for y-axis labels
+        val rightPadding = 20f
+        val topPadding = 20f
+        val bottomPadding = 20f
+        val graphWidth = width - leftPadding - rightPadding
+        val graphHeight = height - topPadding - bottomPadding
+
+        // Calculate nice y-axis ticks
+        val tickInterval = when {
+            glucoseRange <= 5 -> 1.0
+            glucoseRange <= 10 -> 2.0
+            glucoseRange <= 20 -> 5.0
+            else -> 10.0
+        }
+        val minTick = floor(minGlucose / tickInterval) * tickInterval
+        val maxTick = ceil(maxGlucose / tickInterval) * tickInterval
+        val ticks = mutableListOf<Double>()
+        var currentTick = minTick
+        while (currentTick <= maxTick) {
+            ticks.add(currentTick)
+            currentTick += tickInterval
+        }
+
+        // Draw y-axis ticks and labels
+        val textPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.GRAY
+            textSize = 28f
+            textAlign = android.graphics.Paint.Align.RIGHT
+        }
+
+        ticks.forEach { tickValue ->
+            val y = height - bottomPadding - ((tickValue - minGlucose) / glucoseRange * graphHeight).toFloat()
+
+            // Draw tick mark
+            drawLine(
+                color = Color.Gray.copy(alpha = 0.3f),
+                start = Offset(leftPadding - 10f, y),
+                end = Offset(leftPadding, y),
+                strokeWidth = 2f
+            )
+
+            // Draw grid line
+            drawLine(
+                color = Color.Gray.copy(alpha = 0.1f),
+                start = Offset(leftPadding, y),
+                end = Offset(leftPadding + graphWidth, y),
+                strokeWidth = 1f
+            )
+
+            // Draw tick label
+            drawContext.canvas.nativeCanvas.drawText(
+                String.format("%.1f", tickValue),
+                leftPadding - 15f,
+                y + 10f,
+                textPaint
+            )
+        }
 
         // Draw background zones
-        val normalTop = height - ((normalRange.endInclusive - minGlucose) / glucoseRange * (height - padding)).toFloat()
-        val normalBottom = height - ((normalRange.start - minGlucose) / glucoseRange * (height - padding)).toFloat()
+        val normalTop = height - bottomPadding - ((normalRange.endInclusive - minGlucose) / glucoseRange * graphHeight).toFloat()
+        val normalBottom = height - bottomPadding - ((normalRange.start - minGlucose) / glucoseRange * graphHeight).toFloat()
 
         drawRect(
             color = normalColor.copy(alpha = 0.1f),
-            topLeft = Offset(padding, max(normalTop, padding)),
-            size = androidx.compose.ui.geometry.Size(width - padding * 2, (normalBottom - normalTop).coerceAtLeast(0f))
+            topLeft = Offset(leftPadding, max(normalTop, topPadding)),
+            size = androidx.compose.ui.geometry.Size(graphWidth, (normalBottom - normalTop).coerceAtLeast(0f))
         )
 
         // Draw glucose line
         if (allPoints.size > 1) {
             val path = Path()
-            val stepX = (width - padding * 2) / (allPoints.size - 1)
+            val stepX = graphWidth / (allPoints.size - 1)
 
             allPoints.forEachIndexed { index, point ->
-                val x = padding + index * stepX
-                val y = height - ((point.glucose - minGlucose) / glucoseRange * (height - padding)).toFloat()
+                val x = leftPadding + index * stepX
+                val y = height - bottomPadding - ((point.glucose - minGlucose) / glucoseRange * graphHeight).toFloat()
 
                 if (index == 0) {
                     path.moveTo(x, y)
@@ -174,8 +233,5 @@ private fun GlucoseGraph(
                 style = Stroke(width = 3f)
             )
         }
-
-        // Draw axis labels (simplified)
-        // TODO: Add proper axis labels with time and glucose values
     }
 }

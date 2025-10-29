@@ -104,6 +104,35 @@ class CgmApiRepositoryImpl(
         }
     }
 
+    override suspend fun explainDataset(
+        datasetId: String,
+        preset: String,
+        lang: String,
+        style: String
+    ): Result<com.example.project.domain.model.LLMExplanation> = withContext(Dispatchers.IO) {
+        try {
+            val request = com.example.project.data.remote.dto.ExplainRequestDto(
+                datasetId = datasetId,
+                preset = preset,
+                lang = lang,
+                style = style
+            )
+            val response = apiService.explainDataset(request)
+            if (response.isSuccessful) {
+                val explanation = response.body()?.toDomain()
+                if (explanation != null) {
+                    Result.success(explanation)
+                } else {
+                    Result.failure(Exception("Empty response body"))
+                }
+            } else {
+                Result.failure(Exception(getErrorMessage(response)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun uploadDataset(
         fileUri: Uri,
         nickname: String?,

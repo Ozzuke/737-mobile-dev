@@ -64,6 +64,16 @@ interface CgmApiService {
     ): Response<AnalyzeResponseDto>
 
     /**
+     * Generate LLM explanation for a dataset
+     * POST /analyze/explain
+     * @param request The explanation request body
+     */
+    @POST("analyze/explain")
+    suspend fun explainDataset(
+        @Body request: ExplainRequestDto
+    ): Response<ExplainResponseDto>
+
+    /**
      * Delete a dataset
      * DELETE /datasets/{dataset_id}
      * @param datasetId The dataset ID to delete

@@ -16,13 +16,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.project.domain.model.*
 import com.example.project.ui.components.EmptyView
 import com.example.project.ui.components.ErrorView
 import com.example.project.ui.components.LoadingView
 import com.example.project.ui.UiState
 import com.example.project.ui.viewmodels.CgmApiViewModel
-import java.util.Locale
 
 /**
  * Screen displaying LLM-generated analysis text for a specific dataset
@@ -36,19 +34,19 @@ fun LLMAnalysisScreen(
     onBackClick: () -> Unit = {},
     viewModel: CgmApiViewModel = viewModel()
 ) {
-    val analysisState by viewModel.analysisState.collectAsState()
+    val llmExplanationState by viewModel.llmExplanationState.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
     var selectedPreset by remember { mutableStateOf("24h") }
 
-    // Fetch analysis when screen loads or preset changes
+    // Fetch LLM explanation when screen loads or preset changes
     LaunchedEffect(datasetId, selectedPreset) {
-        viewModel.analyzeDataset(datasetId, selectedPreset)
+        viewModel.explainDataset(datasetId, selectedPreset, style = "detailed")
     }
 
-    // Clear analysis state when leaving screen
+    // Clear LLM explanation state when leaving screen
     DisposableEffect(Unit) {
         onDispose {
-            viewModel.clearAnalysis()
+            viewModel.clearLLMExplanation()
         }
     }
 
@@ -77,7 +75,7 @@ fun LLMAnalysisScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            when (val state = analysisState) {
+            when (val state = llmExplanationState) {
                 is UiState.Idle -> {
                     // Initial state
                 }
@@ -86,7 +84,7 @@ fun LLMAnalysisScreen(
                 }
                 is UiState.Success -> {
                     LLMAnalysisContent(
-                        analysis = state.data,
+                        explanation = state.data,
                         selectedPreset = selectedPreset,
                         onPresetChange = { selectedPreset = it }
                     )
@@ -94,7 +92,7 @@ fun LLMAnalysisScreen(
                 is UiState.Error -> {
                     ErrorView(
                         message = state.message,
-                        onRetry = { viewModel.analyzeDataset(datasetId, selectedPreset) }
+                        onRetry = { viewModel.explainDataset(datasetId, selectedPreset, style = "detailed") }
                     )
                 }
                 is UiState.Empty -> {
@@ -107,7 +105,7 @@ fun LLMAnalysisScreen(
 
 @Composable
 private fun LLMAnalysisContent(
-    analysis: AnalysisResult,
+    explanation: com.example.project.domain.model.LLMExplanation,
     selectedPreset: String,
     onPresetChange: (String) -> Unit
 ) {
@@ -153,9 +151,6 @@ private fun LLMAnalysisContent(
             }
         }
 
-        // Overall rating card with color
-        OverallRatingBanner(analysis.overallRating)
-
         // AI-generated text in a highlighted card
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -173,13 +168,13 @@ private fun LLMAnalysisContent(
                 // Header
                 Column {
                     Text(
-                        text = "Personalized Insights",
+                        text = "AI-Powered Analysis",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "AI-generated analysis and recommendations",
+                        text = "Detailed insights and personalized recommendations",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -212,7 +207,7 @@ private fun LLMAnalysisContent(
                         )
                     }
                     Text(
-                        text = analysis.summary,
+                        text = explanation.summary,
                         style = MaterialTheme.typography.bodyLarge,
                         lineHeight = 24.sp,
                         color = MaterialTheme.colorScheme.onSurface
@@ -244,20 +239,20 @@ private fun LLMAnalysisContent(
                         )
                     }
                     Text(
-                        text = analysis.interpretation,
+                        text = explanation.interpretation,
                         style = MaterialTheme.typography.bodyLarge,
                         lineHeight = 24.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                // Warnings if any
-                if (analysis.warnings.isNotEmpty()) {
+                // Recommendations section
+                if (explanation.recommendations.isNotEmpty()) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .padding(16.dp),
@@ -265,23 +260,34 @@ private fun LLMAnalysisContent(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "⚠️",
+                                text = "✨",
                                 fontSize = 20.sp,
                                 modifier = Modifier.padding(end = 8.dp)
                             )
                             Text(
-                                text = "Important Notices",
+                                text = "Recommendations",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.error
+                                color = MaterialTheme.colorScheme.tertiary
                             )
                         }
-                        analysis.warnings.forEach { warning ->
-                            Text(
-                                text = "• $warning",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
+                        explanation.recommendations.forEach { recommendation ->
+                            Row(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "•",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                Text(
+                                    text = recommendation,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    lineHeight = 22.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
                 }
@@ -320,93 +326,6 @@ private fun LLMAnalysisContent(
                         lineHeight = 18.sp
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun OverallRatingBanner(rating: OverallRating) {
-    val (backgroundColor, textColor, icon) = when (rating.category) {
-        RatingCategory.GOOD -> Triple(
-            Color(0xFF4CAF50),
-            Color.White,
-            "✓"
-        )
-        RatingCategory.ATTENTION -> Triple(
-            Color(0xFFFFC107),
-            Color(0xFF1F1F1F),
-            "⚠"
-        )
-        RatingCategory.URGENT -> Triple(
-            Color(0xFFF44336),
-            Color.White,
-            "!"
-        )
-        else -> Triple(
-            Color(0xFF757575),
-            Color.White,
-            "?"
-        )
-    }
-
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Icon
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(
-                            color = Color.White.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(28.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = icon,
-                        fontSize = 32.sp,
-                        color = textColor
-                    )
-                }
-
-                // Status text
-                Column {
-                    Text(
-                        text = "Overall Status",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = textColor.copy(alpha = 0.8f)
-                    )
-                    Text(
-                        text = rating.category.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-                }
-            }
-
-            // Score if available
-            rating.score?.let { score ->
-                Text(
-                    text = String.format(Locale.US, "%.1f", score),
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor
-                )
             }
         }
     }

@@ -27,6 +27,10 @@ class CgmApiViewModel(
     private val _analysisState = MutableStateFlow<UiState<AnalysisResult>>(UiState.Idle)
     val analysisState: StateFlow<UiState<AnalysisResult>> = _analysisState.asStateFlow()
 
+    // UI State for LLM explanations
+    private val _llmExplanationState = MutableStateFlow<UiState<com.example.project.domain.model.LLMExplanation>>(UiState.Idle)
+    val llmExplanationState: StateFlow<UiState<com.example.project.domain.model.LLMExplanation>> = _llmExplanationState.asStateFlow()
+
     // Health check state
     private val _healthState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val healthState: StateFlow<UiState<Boolean>> = _healthState.asStateFlow()
@@ -96,10 +100,40 @@ class CgmApiViewModel(
     }
 
     /**
+     * Generate LLM explanation for a dataset
+     * @param datasetId The dataset to explain
+     * @param preset The time preset (24h, 7d, or 14d)
+     * @param lang The language code (default: en)
+     * @param style The explanation style (default: detailed)
+     */
+    fun explainDataset(datasetId: String, preset: String = "24h", lang: String = "en", style: String = "detailed") {
+        viewModelScope.launch {
+            _llmExplanationState.value = UiState.Loading
+            repository.explainDataset(datasetId, preset, lang, style)
+                .onSuccess { explanation ->
+                    _llmExplanationState.value = UiState.Success(explanation)
+                }
+                .onFailure { error ->
+                    _llmExplanationState.value = UiState.Error(
+                        message = getErrorMessage(error),
+                        exception = error
+                    )
+                }
+        }
+    }
+
+    /**
      * Clear analysis state (useful when navigating back)
      */
     fun clearAnalysis() {
         _analysisState.value = UiState.Idle
+    }
+
+    /**
+     * Clear LLM explanation state
+     */
+    fun clearLLMExplanation() {
+        _llmExplanationState.value = UiState.Idle
     }
 
     /**
