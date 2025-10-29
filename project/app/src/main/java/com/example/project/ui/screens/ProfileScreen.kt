@@ -64,56 +64,65 @@ fun ProfileScreen(
                 .padding(dimensionResource(id = R.dimen.padding_medium)),
             verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.padding_medium))
         ) {
-            userProfile?.let { profile ->
-                Card(
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = c.surfaceVariant,
-                        contentColor = c.onSurfaceVariant
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+            // Derive display values from ViewModel, using localized fallbacks for anonymous users
+            val displayName = userProfile?.name ?: stringResource(id = R.string.guest_name)
+            val displayEmail = userProfile?.email ?: stringResource(id = R.string.guest_email)
+            val displayDob = userProfile?.dateOfBirth ?: stringResource(id = R.string.unknown)
+            val displayPhone = userProfile?.phone ?: stringResource(id = R.string.unknown)
+            val displaySensor = userProfile?.cgmSensor ?: stringResource(id = R.string.unknown)
+            val displayNotificationsEnabled = userProfile?.notificationsEnabled ?: false
+
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = c.surfaceVariant,
+                    contentColor = c.onSurfaceVariant
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(dimensionResource(id = R.dimen.padding_card_inner)),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.spacing_medium))
                 ) {
-                    Column(
+                    Image(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = stringResource(id = R.string.user_avatar_description),
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(dimensionResource(id = R.dimen.padding_card_inner)),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.spacing_medium))
-                    ) {
-                        Image(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = stringResource(id = R.string.user_avatar_description),
-                            modifier = Modifier
-                                .size(dimensionResource(id = R.dimen.icon_size_xlarge))
-                                .clip(CircleShape)
-                        )
-                        Text(
-                            text = profile.name,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-                            maxLines = 1,
-                            color = c.onSurface,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = profile.email,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = c.onSurfaceVariant
-                        )
-                    }
+                            .size(dimensionResource(id = R.dimen.icon_size_xlarge))
+                            .clip(CircleShape)
+                    )
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                        maxLines = 1,
+                        color = c.onSurface,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = displayEmail,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = c.onSurfaceVariant
+                    )
                 }
+            }
 
-                SectionCard(title = stringResource(id = R.string.personal_details_title)) {
-                    KeyValueRow(stringResource(id = R.string.dob), profile.dateOfBirth)
-                    KeyValueRow(stringResource(id = R.string.phone), profile.phone)
-                }
+            SectionCard(title = stringResource(id = R.string.personal_details_title)) {
+                KeyValueRow(stringResource(id = R.string.dob), displayDob)
+                KeyValueRow(stringResource(id = R.string.phone), displayPhone)
+            }
 
-                SectionCard(title = stringResource(id = R.string.cgm_device_title)) {
-                    KeyValueRow(stringResource(id = R.string.cgm_sensor), profile.cgmSensor)
-                }
+            SectionCard(title = stringResource(id = R.string.cgm_device_title)) {
+                KeyValueRow(stringResource(id = R.string.cgm_sensor), displaySensor)
+            }
 
-                SectionCard(title = stringResource(id = R.string.app_preferences_title)) {
-                    KeyValueRow(stringResource(id = R.string.notifications), if (profile.notificationsEnabled) "Enabled" else "Disabled")
-                }
+            SectionCard(title = stringResource(id = R.string.app_preferences_title)) {
+                KeyValueRow(
+                    stringResource(id = R.string.notifications),
+                    if (displayNotificationsEnabled) stringResource(id = R.string.enabled) else stringResource(id = R.string.disabled)
+                )
             }
 
             Spacer(Modifier.height(dimensionResource(id = R.dimen.spacing_medium)))

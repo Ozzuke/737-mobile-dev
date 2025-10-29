@@ -13,6 +13,10 @@
     <string name="app_preferences_title">App preferences</string>
     <string name="notifications">Notifications</string>
     <string name="app_version">CGM Buddy • v1.0.0</string>
+    <string name="guest_name">Guest</string>
+    <string name="guest_email">No email provided</string>
+    <string name="guest_member_since">Member since —</string>
+    <string name="unknown">—</string>
 
     <!-- Home Screen -->
     <string name="dashboard_title">Dashboard</string>
