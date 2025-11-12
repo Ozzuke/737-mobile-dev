@@ -2,27 +2,24 @@ package com.example.project.ui.navigation
 
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.project.ui.screens.AnalysisScreen
-import com.example.project.ui.screens.DatasetsScreen
-import com.example.project.ui.screens.HomeScreen
-import com.example.project.ui.screens.ProfileScreen
-import com.example.project.ui.screens.UploadScreen
-import com.example.project.ui.viewmodels.CgmApiViewModel
-import com.example.project.ui.viewmodels.GlucoseViewModel
-import com.example.project.ui.viewmodels.MainViewModel
-import com.example.project.ui.viewmodels.MainViewModelFactory
+import com.example.project.ui.screens.*
+import com.example.project.ui.viewmodels.*
 
 sealed class Screen(val route: String) {
+    data object Login : Screen("login")
+    data object Register : Screen("register")
     data object Home : Screen("home")
     data object Profile : Screen("profile")
     data object Upload : Screen("upload")
     data object Datasets : Screen("datasets")
+    data object Connections : Screen("connections")
     data object Analysis : Screen("analysis/{datasetId}") {
         fun createRoute(datasetId: String) = "analysis/$datasetId"
     }
@@ -42,6 +39,12 @@ fun AppNav() {
     val application = context.applicationContext as com.example.project.CGMApplication
 
     // Create ViewModels with injected repositories
+    val authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(
+            authRepository = application.authRepository
+        )
+    )
+
     val glucoseViewModel: GlucoseViewModel = viewModel(
         factory = com.example.project.ui.viewmodels.GlucoseViewModelFactory(
             application = application,
@@ -65,16 +68,59 @@ fun AppNav() {
         )
     )
 
+    // Observe authentication state
+    val isAuthenticated by authViewModel.isAuthenticated.collectAsStateWithLifecycle()
+
+    // Determine start destination based on authentication
+    val startDestination = if (isAuthenticated) Screen.Home.route else Screen.Login.route
+
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = startDestination
     ) {
+        // Authentication screens
+        composable(Screen.Login.route) {
+            LoginScreen(
+                viewModel = authViewModel,
+                onLoginSuccess = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onNavigateToRegister = {
+                    navController.navigate(Screen.Register.route)
+                }
+            )
+        }
+
+        composable(Screen.Register.route) {
+            RegisterScreen(
+                viewModel = authViewModel,
+                onRegisterSuccess = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Main app screens (require authentication)
         composable(Screen.Home.route) {
+            val connectionViewModel: ConnectionViewModel = viewModel(
+                factory = ConnectionViewModelFactory(
+                    authRepository = application.authRepository
+                )
+            )
+
             HomeScreen(
                 onAddClick = { navController.navigate(Screen.Upload.route) },
                 onSettingsClick = { /* TODO: Settings screen */ },
                 onInfoClick = { navController.navigate(Screen.Datasets.route) },
                 onProfileClick = { navController.navigate(Screen.Profile.route) },
+                onConnectionsClick = { navController.navigate(Screen.Connections.route) },
                 onStatusClick = { datasetId ->
                     navController.navigate(Screen.LLMAnalysis.createRoute(datasetId))
                 },
@@ -86,7 +132,9 @@ fun AppNav() {
                 onOfflineClick = {
                     showOfflineDisclaimer = true
                 },
-                mainViewModel = mainViewModel
+                mainViewModel = mainViewModel,
+                authViewModel = authViewModel,
+                connectionViewModel = connectionViewModel
             )
 
             // Show offline disclaimer dialog
@@ -98,7 +146,28 @@ fun AppNav() {
             }
         }
         composable(Screen.Profile.route) {
-            ProfileScreen(onBackClick = { navController.popBackStack() })
+            ProfileScreen(
+                authViewModel = authViewModel,
+                onBackClick = { navController.popBackStack() },
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(Screen.Connections.route) {
+            val connectionViewModel: ConnectionViewModel = viewModel(
+                factory = ConnectionViewModelFactory(
+                    authRepository = application.authRepository
+                )
+            )
+            ConnectionsScreen(
+                authViewModel = authViewModel,
+                connectionViewModel = connectionViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
         }
         composable(Screen.Upload.route) {
             UploadScreen(

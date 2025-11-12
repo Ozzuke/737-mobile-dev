@@ -121,3 +121,12 @@ data class TimeRangeDto(
     @Json(name = "end")
     val end: String
 )
+
+// New API upload response (for /data endpoint)
+@JsonClass(generateAdapter = true)
+data class UploadDataResponseDto(
+    @Json(name = "dataset_id")
+    val datasetId: String,
+    @Json(name = "validation")
+    val validation: ValidationResultDto
+)

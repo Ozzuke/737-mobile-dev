@@ -1,188 +1,387 @@
 package com.example.project.ui.screens
 
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.dimensionResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.project.R
-import com.example.project.ui.theme.ProjectTheme
-import com.example.project.ui.viewmodels.ProfileViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.project.domain.model.ClinicianProfile
+import com.example.project.domain.model.PatientProfile
+import com.example.project.ui.viewmodels.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    modifier: Modifier = Modifier,
-    onBackClick: () -> Unit = {},
-    viewModel: ProfileViewModel = viewModel()
+    authViewModel: AuthViewModel,
+    onBackClick: () -> Unit,
+    onLogout: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val scroll = rememberScrollState()
-    val c = MaterialTheme.colorScheme
-    val userProfile by viewModel.userProfile.collectAsState()
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(stringResource(id = R.string.profile_title)) },
+            TopAppBar(
+                title = { Text("Profile") },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(id = R.string.back_button_description), tint = c.onPrimary)
+                    TextButton(onClick = onBackClick) {
+                        Text("Back")
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = c.primary,
-                    titleContentColor = c.onPrimary,
-                    navigationIconContentColor = c.onPrimary,
-                    actionIconContentColor = c.onPrimary
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         }
-    ) { padding ->
+    ) { paddingValues ->
         Column(
             modifier = modifier
-                .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(scroll)
-                .padding(dimensionResource(id = R.dimen.padding_medium)),
-            verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.padding_medium))
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Derive display values from ViewModel, using localized fallbacks for anonymous users
-            val displayName = userProfile?.name ?: stringResource(id = R.string.guest_name)
-            val displayEmail = userProfile?.email ?: stringResource(id = R.string.guest_email)
-            val displayDob = userProfile?.dateOfBirth ?: stringResource(id = R.string.unknown)
-            val displayPhone = userProfile?.phone ?: stringResource(id = R.string.unknown)
-            val displaySensor = userProfile?.cgmSensor ?: stringResource(id = R.string.unknown)
-            val displayNotificationsEnabled = userProfile?.notificationsEnabled ?: false
-
+            // User info card
             Card(
-                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = c.surfaceVariant,
-                    contentColor = c.onSurfaceVariant
-                ),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Profile",
+                        modifier = Modifier.size(80.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    when (val user = currentUser) {
+                        is PatientProfile -> {
+                            Text(
+                                text = user.nickname,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "@${user.username}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Role: Patient",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        is ClinicianProfile -> {
+                            Text(
+                                text = user.fullName,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "@${user.username}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Role: Clinician",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                        else -> {
+                            CircularProgressIndicator()
+                        }
+                    }
+                }
+            }
+
+            // Account details card
+            when (val user = currentUser) {
+                is PatientProfile -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Patient Information",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            InfoRow("Birth Year", user.birthYear.toString())
+                            InfoRow(
+                                "Diagnosis",
+                                "${user.diabetesDiagnosisMonth}/${user.diabetesDiagnosisYear}"
+                            )
+                        }
+                    }
+                }
+                is ClinicianProfile -> {
+                    // Clinician doesn't have additional info to show
+                }
+                else -> {}
+            }
+
+            // Actions card
+            Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(dimensionResource(id = R.dimen.padding_card_inner)),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.spacing_medium))
+                        .padding(8.dp)
                 ) {
-                    Image(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = stringResource(id = R.string.user_avatar_description),
+                    // Change Password button
+                    ListItem(
+                        headlineContent = { Text("Change Password") },
+                        supportingContent = { Text("Update your account password") },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Change Password"
+                            )
+                        },
                         modifier = Modifier
-                            .size(dimensionResource(id = R.dimen.icon_size_xlarge))
-                            .clip(CircleShape)
+                            .fillMaxWidth()
+                            .clickable { showChangePasswordDialog = true }
                     )
-                    Text(
-                        text = displayName,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-                        maxLines = 1,
-                        color = c.onSurface,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = displayEmail,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = c.onSurfaceVariant
+
+                    HorizontalDivider()
+
+                    // Delete Account button
+                    ListItem(
+                        headlineContent = { Text("Delete Account") },
+                        supportingContent = { Text("Permanently delete your account") },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Account"
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showDeleteAccountDialog = true },
+                        colors = ListItemDefaults.colors(
+                            leadingIconColor = MaterialTheme.colorScheme.error,
+                            headlineColor = MaterialTheme.colorScheme.error
+                        )
                     )
                 }
             }
 
-            SectionCard(title = stringResource(id = R.string.personal_details_title)) {
-                KeyValueRow(stringResource(id = R.string.dob), displayDob)
-                KeyValueRow(stringResource(id = R.string.phone), displayPhone)
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            SectionCard(title = stringResource(id = R.string.cgm_device_title)) {
-                KeyValueRow(stringResource(id = R.string.cgm_sensor), displaySensor)
+            // Logout button
+            OutlinedButton(
+                onClick = { showLogoutDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ExitToApp,
+                    contentDescription = "Logout",
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Logout")
             }
+        }
 
-            SectionCard(title = stringResource(id = R.string.app_preferences_title)) {
-                KeyValueRow(
-                    stringResource(id = R.string.notifications),
-                    if (displayNotificationsEnabled) stringResource(id = R.string.enabled) else stringResource(id = R.string.disabled)
+        // Logout confirmation dialog
+        if (showLogoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutDialog = false },
+                title = { Text("Logout") },
+                text = { Text("Are you sure you want to logout?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showLogoutDialog = false
+                            onLogout()
+                        }
+                    ) {
+                        Text("Logout", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLogoutDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Change Password dialog
+        if (showChangePasswordDialog) {
+            ChangePasswordDialog(
+                onDismiss = { showChangePasswordDialog = false },
+                onConfirm = { currentPassword, newPassword ->
+                    authViewModel.updatePassword(currentPassword, newPassword)
+                    showChangePasswordDialog = false
+                }
+            )
+        }
+
+        // Delete Account confirmation dialog
+        if (showDeleteAccountDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteAccountDialog = false },
+                title = { Text("Delete Account") },
+                text = { Text("Are you sure you want to permanently delete your account? This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            authViewModel.deleteAccount()
+                            showDeleteAccountDialog = false
+                            onLogout()
+                        }
+                    ) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteAccountDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChangePasswordDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
+) {
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Change Password") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                OutlinedTextField(
+                    value = currentPassword,
+                    onValueChange = { currentPassword = it },
+                    label = { Text("Current Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = { Text("New Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Confirm New Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-
-            Spacer(Modifier.height(dimensionResource(id = R.dimen.spacing_medium)))
-            Text(
-                text = stringResource(id = R.string.app_version),
-                style = MaterialTheme.typography.bodySmall,
-                color = c.onSurfaceVariant,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-        }
-    }
-}
-
-@Composable
-private fun SectionCard(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    val c = MaterialTheme.colorScheme
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = dimensionResource(id = R.dimen.card_elevation))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = dimensionResource(id = R.dimen.padding_small))
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = c.primary,
-                modifier = Modifier.padding(horizontal = dimensionResource(id = R.dimen.padding_medium), vertical = dimensionResource(id = R.dimen.padding_small))
-            )
-            Divider()
-            Column(content = content)
-        }
-    }
-}
-
-@Composable
-private fun KeyValueRow(label: String, value: String) {
-    ListItem(
-        headlineContent = { Text(label) },
-        supportingContent = {
-            Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    when {
+                        currentPassword.isEmpty() || newPassword.isEmpty() || confirmPassword.isEmpty() -> {
+                            errorMessage = "All fields are required"
+                        }
+                        newPassword != confirmPassword -> {
+                            errorMessage = "New passwords do not match"
+                        }
+                        newPassword.length < 6 -> {
+                            errorMessage = "Password must be at least 6 characters"
+                        }
+                        else -> {
+                            onConfirm(currentPassword, newPassword)
+                        }
+                    }
+                }
+            ) {
+                Text("Change")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
         }
     )
-    Divider()
 }
 
-@Preview(showBackground = true)
 @Composable
-private fun ProfileScreenPreviewLight() {
-    ProjectTheme { ProfileScreen() }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ProfileScreenPreviewDark() {
-    ProjectTheme(darkTheme = true) { ProfileScreen() }
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
+    }
 }

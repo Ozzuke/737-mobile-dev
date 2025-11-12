@@ -30,7 +30,8 @@ data class HomeScreenState(
     val status: RatingCategory? = null,
     val datasetData: DatasetData? = null,
     val analysis: AnalysisResult? = null,
-    val selectedPreset: String = "24h"
+    val selectedPreset: String = "24h",
+    val selectedPatientId: String? = null
 )
 
 /**
@@ -67,6 +68,15 @@ class MainViewModel(
     }
 
     /**
+     * Set the selected patient ID for clinicians
+     */
+    fun setSelectedPatientId(patientId: String?) {
+        _homeState.value = _homeState.value.copy(selectedPatientId = patientId)
+        // Refresh data with new patient ID
+        fetchLatestData()
+    }
+
+    /**
      * Fetch the active dataset (from preferences) or latest dataset if none is set
      */
     fun fetchLatestData(preset: String = _homeState.value.selectedPreset) {
@@ -79,12 +89,14 @@ class MainViewModel(
             // Get active dataset ID from preferences
             val activeDatasetId = preferencesRepository.getActiveDatasetId().first()
 
+            val patientId = _homeState.value.selectedPatientId
+
             if (activeDatasetId != null) {
                 // Use the active dataset
-                fetchDatasetById(activeDatasetId, preset)
+                fetchDatasetById(activeDatasetId, preset, patientId)
             } else {
                 // No active dataset set, use the latest one and save it as active
-                repository.getDatasets()
+                repository.getDatasets(patientId)
                     .onSuccess { datasets ->
                         if (datasets.isEmpty()) {
                             _homeState.value = _homeState.value.copy(
@@ -102,10 +114,10 @@ class MainViewModel(
                         preferencesRepository.setActiveDatasetId(latestDataset.datasetId)
 
                         // Fetch dataset data (overlay)
-                        fetchDatasetData(latestDataset.datasetId, preset)
+                        fetchDatasetData(latestDataset.datasetId, preset, patientId)
 
                         // Fetch analysis
-                        fetchAnalysis(latestDataset.datasetId, preset)
+                        fetchAnalysis(latestDataset.datasetId, preset, patientId)
                     }
                     .onFailure { error ->
                         _homeState.value = _homeState.value.copy(
@@ -120,14 +132,14 @@ class MainViewModel(
     /**
      * Fetch a specific dataset by ID
      */
-    private suspend fun fetchDatasetById(datasetId: String, preset: String) {
-        repository.getDatasets()
+    private suspend fun fetchDatasetById(datasetId: String, preset: String, patientId: String?) {
+        repository.getDatasets(patientId)
             .onSuccess { datasets ->
                 val dataset = datasets.firstOrNull { it.datasetId == datasetId }
                 if (dataset != null) {
                     _homeState.value = _homeState.value.copy(latestDataset = dataset)
-                    fetchDatasetData(datasetId, preset)
-                    fetchAnalysis(datasetId, preset)
+                    fetchDatasetData(datasetId, preset, patientId)
+                    fetchAnalysis(datasetId, preset, patientId)
                 } else {
                     _homeState.value = _homeState.value.copy(
                         isLoading = false,
@@ -146,8 +158,8 @@ class MainViewModel(
     /**
      * Fetch dataset data (overlay) for the graph
      */
-    private suspend fun fetchDatasetData(datasetId: String, preset: String) {
-        repository.getDatasetData(datasetId, preset)
+    private suspend fun fetchDatasetData(datasetId: String, preset: String, patientId: String?) {
+        repository.getDatasetData(datasetId, preset, patientId)
             .onSuccess { data ->
                 // Extract latest glucose value
                 val latestPoint = data.overlayDays.lastOrNull()?.points?.lastOrNull()
@@ -170,8 +182,8 @@ class MainViewModel(
     /**
      * Fetch analysis for the dataset
      */
-    private suspend fun fetchAnalysis(datasetId: String, preset: String) {
-        repository.analyzeDataset(datasetId, preset)
+    private suspend fun fetchAnalysis(datasetId: String, preset: String, patientId: String?) {
+        repository.analyzeDataset(datasetId, preset, patientId = patientId)
             .onSuccess { analysis ->
                 _homeState.value = _homeState.value.copy(
                     analysis = analysis,

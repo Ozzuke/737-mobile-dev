@@ -1,18 +1,19 @@
 package com.example.project.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,8 +22,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.project.domain.model.ClinicianProfile
 import com.example.project.domain.model.RatingCategory
 import com.example.project.ui.components.GlucoseGraphCard
+import com.example.project.ui.UiState
+import com.example.project.ui.viewmodels.AuthViewModel
+import com.example.project.ui.viewmodels.ConnectionViewModel
 import com.example.project.ui.viewmodels.MainViewModel
 
 /**
@@ -35,13 +40,28 @@ fun HomeScreen(
     onSettingsClick: () -> Unit = {},
     onInfoClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    onConnectionsClick: () -> Unit = {},
     onStatusClick: (String) -> Unit = {}, // Navigate to analysis with dataset ID
     onGraphClick: (String, String) -> Unit = { _, _ -> }, // Navigate to metrics with dataset ID and preset
     onOfflineClick: () -> Unit = {}, // Show disclaimer when offline
-    mainViewModel: MainViewModel
+    mainViewModel: MainViewModel,
+    authViewModel: AuthViewModel,
+    connectionViewModel: ConnectionViewModel
 ) {
     val homeState by mainViewModel.homeState.collectAsState()
+    val currentUser by authViewModel.currentUser.collectAsState()
+    val connectedPatientsState by connectionViewModel.connectedPatientsState.collectAsState()
     var selectedPreset by remember { mutableStateOf("24h") }
+
+    // Check if user is a clinician
+    val isClinician = currentUser is ClinicianProfile
+
+    // Fetch connected patients for clinicians
+    LaunchedEffect(isClinician) {
+        if (isClinician) {
+            connectionViewModel.fetchConnectedPatients()
+        }
+    }
 
     // Trigger initial data fetch
     LaunchedEffect(Unit) {
@@ -71,6 +91,9 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onConnectionsClick) {
+                        Icon(Icons.Outlined.Share, contentDescription = "Connections", tint = c.onPrimary)
+                    }
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = c.onPrimary)
                     }
@@ -147,6 +170,19 @@ fun HomeScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        // Patient selector for clinicians
+                        if (isClinician && connectedPatientsState is UiState.Success) {
+                            val patients = (connectedPatientsState as UiState.Success).data
+                            if (patients.isNotEmpty()) {
+                                PatientSelectorCard(
+                                    patients = patients,
+                                    selectedPatientId = homeState.selectedPatientId,
+                                    onPatientSelected = { patientId ->
+                                        mainViewModel.setSelectedPatientId(patientId)
+                                    }
+                                )
+                            }
+                        }
                         // Current glucose + status indicator (side by side)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -343,40 +379,81 @@ private fun StatusCard(
     }
 }
 
-/**
- * Status indicator badge showing GOOD/ATTENTION/URGENT
- */
-@Composable
-private fun StatusIndicator(status: RatingCategory?) {
-    val (color, text) = when (status) {
-        RatingCategory.GOOD -> Pair(
-            MaterialTheme.colorScheme.primaryContainer,
-            "GOOD"
-        )
-        RatingCategory.ATTENTION -> Pair(
-            MaterialTheme.colorScheme.secondaryContainer,
-            "ATTENTION"
-        )
-        RatingCategory.URGENT -> Pair(
-            MaterialTheme.colorScheme.errorContainer,
-            "URGENT"
-        )
-        else -> Pair(
-            MaterialTheme.colorScheme.surfaceVariant,
-            "UNKNOWN"
-        )
-    }
 
-    Box(
-        modifier = Modifier
-            .background(color, RoundedCornerShape(12.dp))
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+/**
+ * Patient selector dropdown for clinicians
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PatientSelectorCard(
+    patients: List<com.example.project.domain.model.ConnectedPatient>,
+    selectedPatientId: String?,
+    onPatientSelected: (String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp
-        )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Viewing Patient Data",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = if (selectedPatientId == null) {
+                        "My Own Data"
+                    } else {
+                        patients.find { it.id == selectedPatientId }?.nickname ?: "Select Patient"
+                    },
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Patient") },
+                    trailingIcon = {
+                        Icon(
+                            Icons.Filled.ArrowDropDown,
+                            contentDescription = "Select patient"
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                    colors = OutlinedTextFieldDefaults.colors()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    // Option for clinician's own data
+                    DropdownMenuItem(
+                        text = { Text("My Own Data") },
+                        onClick = {
+                            onPatientSelected(null)
+                            expanded = false
+                        }
+                    )
+
+                    // Options for connected patients
+                    patients.forEach { patient ->
+                        DropdownMenuItem(
+                            text = { Text(patient.nickname) },
+                            onClick = {
+                                onPatientSelected(patient.id)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
 }
