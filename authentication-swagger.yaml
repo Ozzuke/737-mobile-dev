@@ -1,0 +1,1198 @@
+openapi: 3.0.3
+info:
+  title: CGM Analyzer API
+  version: 1.0.0
+  description: |
+    API for managing CGM (Continuous Glucose Monitoring) data with user authentication and clinician-patient relationships.
+    
+    **Authentication Flow:**
+    1. Register as a patient or clinician.
+    2. Login to receive JWT access and refresh tokens.
+    3. Use the access token in the `Authorization` header for protected endpoints.
+    4. When the access token expires, use the refresh token to get a new one.
+    5. Logout to invalidate the token via a server-side blocklist.
+    
+    **User Roles:**
+    - **Patient**: Can upload data, manage their profile, and connect with clinicians using a secret code.
+    - **Clinician**: Can connect with patients to view their data.
+    
+    **Data Model:**
+    - **Dataset**: A collection of glucose readings for a patient.
+    - **GlucoseReading**: A single glucose measurement at a specific time.
+    
+    **Connection Flow:**
+    1. A patient generates a short-lived secret code.
+    2. The patient shares the code with a clinician.
+    3. The clinician uses the code to establish a connection.
+    4. Both patients and clinicians can manage their connections.
+
+servers:
+  - url: /api/v1
+    description: API v1 endpoint
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Legacy API key authentication (maintained for backward compatibility)
+
+  schemas:
+    # ============ AUTH SCHEMAS ============
+    RegisterPatientRequest:
+      type: object
+      required: [username, password, nickname, birth_year, diabetes_diagnosis_month, diabetes_diagnosis_year]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: Unique username for login (alphanumeric, underscore, hyphen)
+        password:
+          type: string
+          minLength: 8
+          description: Password (minimum 8 characters)
+        nickname:
+          type: string
+          maxLength: 100
+          description: Display name shown to clinicians and in UI
+        birth_year:
+          type: integer
+        diabetes_diagnosis_month:
+          type: integer
+        diabetes_diagnosis_year:
+          type: integer
+
+    RegisterClinicianRequest:
+      type: object
+      required: [username, password, full_name]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: Unique username for login
+        password:
+          type: string
+          minLength: 8
+          description: Password (minimum 8 characters)
+        full_name:
+          type: string
+          maxLength: 255
+          description: Clinician's full name
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token (1 hour expiry)
+        refresh_token:
+          type: string
+          description: JWT refresh token (30 days expiry)
+        token_type:
+          type: string
+          enum: [Bearer]
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/PatientProfile'
+            - $ref: '#/components/schemas/ClinicianProfile'
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh token from login response
+
+    RefreshResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: New JWT access token
+        token_type:
+          type: string
+          enum: [Bearer]
+
+    # ============ USER PROFILE SCHEMAS ============
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        role:
+          type: string
+          enum: [patient, clinician]
+          description: User role type for distinguishing between patients and clinicians
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PatientProfile:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            nickname:
+              type: string
+            birth_year:
+              type: integer
+            diabetes_diagnosis_month:
+              type: integer
+            diabetes_diagnosis_year:
+              type: integer
+          description: Patient profile
+
+    ClinicianProfile:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            full_name:
+              type: string
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+        full_name:
+          type: string
+
+    UpdatePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+
+    # ============ CONNECTION SCHEMAS ============
+    ConnectionCodeRequest:
+      type: object
+      required: [connection_code]
+      properties:
+        connection_code:
+          type: string
+          description: The secret code provided by the patient.
+
+    ConnectedPatient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nickname:
+          type: string
+
+    ConnectedClinician:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+
+    # ============ DATA SCHEMAS ============
+    UploadDataResponse:
+      type: object
+      properties:
+        dataset_id:
+          type: string
+          format: uuid
+          description: ID of the dataset (created if first upload)
+        readings_added:
+          type: integer
+          description: Number of new readings inserted
+        readings_updated:
+          type: integer
+          description: Number of existing readings updated
+        total_readings:
+          type: integer
+          description: Total readings in dataset after upload
+        date_range:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        unit:
+          type: string
+          enum: [mmol/L, mg/dL]
+          description: Unit of glucose measurements
+
+    DatasetItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        unit:
+          type: string
+          enum: [mmol/L, mg/dL]
+        total_readings:
+          type: integer
+        date_range:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DataOverlayResponse:
+      type: object
+      properties:
+        unit:
+          type: string
+          enum: [mmol/L, mg/dL]
+        preset:
+          type: string
+          enum: [24h, 7d, 14d]
+        coverage_percent:
+          type: number
+          description: Percentage of expected data points that are present
+        overlay:
+          type: object
+          properties:
+            days:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                    description: Date in YYYY-MM-DD format
+                  points:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        minute:
+                          type: integer
+                          minimum: 0
+                          maximum: 1439
+                          description: Minute of day (0-1439)
+                        glucose:
+                          type: number
+                          description: Glucose value
+      example:
+        unit: mmol/L
+        preset: 24h
+        coverage_percent: 95.5
+        overlay:
+          days:
+            - date: "2025-11-11"
+              points:
+                - minute: 0
+                  glucose: 5.5
+                - minute: 15
+                  glucose: 6.2
+                - minute: 1439
+                  glucose: 5.8
+
+
+
+    # ============ ANALYSIS SCHEMAS ============
+    AnalyzeRequest:
+      type: object
+      required: [preset]
+      properties:
+        preset:
+          type: string
+          enum: [24h, 7d, 14d]
+        lang:
+          type: string
+          default: en
+          description: Language code (en, et, etc.)
+        patient_age:
+          type: integer
+          description: Optional patient age for age-appropriate physiological pattern detection
+
+    AnalyzeResponse:
+      type: object
+      properties:
+        unit:
+          type: string
+          enum: [mmol/L]
+        meta:
+          type: object
+          properties:
+            coverage_percent:
+              type: number
+            resolution_min:
+              type: integer
+            days_count:
+              type: integer
+        overall:
+          type: object
+          properties:
+            rating:
+              type: string
+              enum: [good, attention, urgent]
+            summary:
+              type: string
+        annotations:
+          type: object
+          properties:
+            trends:
+              type: array
+              items:
+                $ref: '#/components/schemas/TrendAnnotation'
+            extrema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExtremaAnnotation'
+        patterns:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pattern'
+        text:
+          type: object
+          properties:
+            summary:
+              type: string
+            interpretation:
+              type: string
+
+    TrendAnnotation:
+      type: object
+      properties:
+        start_minute:
+          type: integer
+          minimum: 0
+          maximum: 1439
+        end_minute:
+          type: integer
+          minimum: 0
+          maximum: 1439
+        slope_mmol_l_per_hour:
+          type: number
+        direction:
+          type: string
+          enum: [up, down]
+        example_span:
+          type: string
+
+    ExtremaAnnotation:
+      type: object
+      properties:
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 1439
+        value:
+          type: number
+        kind:
+          type: string
+          enum: [max, min]
+
+    Pattern:
+      type: object
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        severity:
+          type: string
+          enum: [info, moderate, high]
+        summary:
+          type: string
+        instances:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              start_minute:
+                type: integer
+              end_minute:
+                type: integer
+
+    ExplainRequest:
+      type: object
+      required: [preset]
+      properties:
+        preset:
+          type: string
+          enum: [24h, 7d, 14d]
+        lang:
+          type: string
+          default: en
+        style:
+          type: string
+          enum: [detailed, summary, clinical]
+          default: detailed
+        patient_age:
+          type: integer
+          description: Optional patient age for age-appropriate physiological pattern detection
+
+    ExplainResponse:
+      type: object
+      properties:
+        explanation:
+          type: string
+          description: LLM-generated natural language explanation
+        meta:
+          type: object
+          properties:
+            coverage_percent:
+              type: number
+            preset:
+              type: string
+            lang:
+              type: string
+            style:
+              type: string
+
+    # ============ ERROR SCHEMAS ============
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error message
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or token invalid/expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            detail: Invalid or expired token
+
+paths:
+  # ============ SYSTEM ============
+  /healthz:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Check if the service is healthy and operational
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+              example:
+                status: healthy
+
+  # ============ AUTHENTICATION ============
+  /auth/register/patient:
+    post:
+      tags: [Authentication]
+      summary: Register new patient account
+      description: Create a new patient account with username, password, and display nickname
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPatientRequest'
+      responses:
+        '201':
+          description: Patient account created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/PatientProfile'
+                  message:
+                    type: string
+        '400':
+          description: Invalid input or username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/register/clinician:
+    post:
+      tags: [Authentication]
+      summary: Register new clinician account
+      description: Create a new clinician account with username, password, and full name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterClinicianRequest'
+      responses:
+        '201':
+          description: Clinician account created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/ClinicianProfile'
+                  message:
+                    type: string
+        '400':
+          description: Invalid input or username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login and receive JWT tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout (client-side token removal)
+      description: Invalidate tokens on client side. Server does not maintain session state.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: Use refresh token to get a new access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New access token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ USER PROFILE ============
+  /profile:
+    get:
+      tags: [User Profile]
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PatientProfile'
+                  - $ref: '#/components/schemas/ClinicianProfile'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    put:
+      tags: [User Profile]
+      summary: Update user profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PatientProfile'
+                  - $ref: '#/components/schemas/ClinicianProfile'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    delete:
+      tags: [User Profile]
+      summary: Delete user account
+      description: Permanently delete user account and all associated data
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Account deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /profile/password:
+    put:
+      tags: [User Profile]
+      summary: Change password
+      description: Change password (requires current password for verification)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Invalid current password or new password too weak
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+
+  # ============ CONNECTION MANAGEMENT ============
+  /connection-code:
+    get:
+      tags: [Connection Management]
+      summary: Generate connection code (Patient only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: A new connection code has been generated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection_code:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+        '403':
+          description: Only patients can generate a connection code.
+
+  /connections:
+    post:
+      tags: [Connection Management]
+      summary: Connect to a patient (Clinician only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionCodeRequest'
+      responses:
+        '200':
+          description: Successfully connected to the patient.
+        '400':
+          description: Invalid or expired connection code.
+        '403':
+          description: Only clinicians can connect to patients.
+
+  /patients:
+    get:
+      tags: [Connection Management]
+      summary: Get connected patients (Clinician only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: A list of connected patients.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectedPatient'
+        '403':
+          description: Only clinicians can view their connected patients.
+
+  /clinicians:
+    get:
+      tags: [Connection Management]
+      summary: Get connected clinicians (Patient only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: A list of connected clinicians.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectedClinician'
+        '403':
+          description: Only patients can view their connected clinicians.
+
+  /patients/{patient_id}:
+    delete:
+      tags: [Connection Management]
+      summary: Disconnect a patient (Clinician only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: patient_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Successfully disconnected the patient.
+        '403':
+          description: Only clinicians can disconnect their patients.
+
+  /clinicians/{clinician_id}:
+    delete:
+      tags: [Connection Management]
+      summary: Disconnect a clinician (Patient only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: clinician_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Successfully disconnected the clinician.
+        '403':
+          description: Only patients can disconnect their clinicians.
+
+  # ============ DATA MANAGEMENT ============
+  /data:
+    post:
+      tags: [Data]
+      summary: Upload CGM data
+      description: |
+        Upload CGM CSV file. Can be used by:
+        - **Patient**: Upload their own data (dataset auto-created on first upload)
+        - **Clinician**: Upload data for a connected patient (must specify patient_id)
+        
+        Data is merged into existing dataset using UPSERT logic (new readings inserted, existing timestamps updated).
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [cgm_csv]
+              properties:
+                cgm_csv:
+                  type: string
+                  format: binary
+                  description: CSV file with CGM data (columns - timestamp, glucose value)
+                unit:
+                  type: string
+                  enum: [mmol/L, mg/dL]
+                  description: Unit of glucose values (auto-detected from file if not provided)
+                patient_id:
+                  type: string
+                  format: uuid
+                  description: Required when clinician uploads data for a patient
+      responses:
+        '201':
+          description: Data uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadDataResponse'
+        '400':
+          description: Invalid file format or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Clinician not connected to specified patient
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      tags: [Data]
+      summary: Get dataset metadata
+      description: |
+        Get dataset metadata. Returns:
+        - **Patient**: Their own dataset
+        - **Clinician**: Specified patient's dataset (must be connected)
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: patient_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Required for clinicians to view patient data
+      responses:
+        '200':
+          description: Dataset metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Clinician not connected to patient
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No dataset found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Data]
+      summary: Delete all CGM data
+      description: |
+        Permanently delete all glucose readings and dataset metadata.
+        - **Patient**: Delete their own data
+        - **Clinician**: Cannot delete patient data
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Data deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Only patients can delete their own data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No dataset found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /data/overlay:
+    get:
+      tags: [Data]
+      summary: Get data overlay (visualization data)
+      description: |
+        Get glucose data for overlay visualization with specified preset (24h, 7d, 14d).
+        - **Patient**: Their own data
+        - **Clinician**: Connected patient's data (must specify patient_id)
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: preset
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [24h, 7d, 14d]
+        - name: patient_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Required for clinicians
+      responses:
+        '200':
+          description: Full data coverage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataOverlayResponse'
+        '206':
+          description: Partial data coverage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataOverlayResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Dataset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: No data available for requested period
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============ ANALYSIS ============
+  /analyze:
+    post:
+      tags: [Analysis]
+      summary: Analyze CGM data
+      description: |
+        Run comprehensive CGM analysis using the analysis engine. Detects:
+        - Data quality issues and coverage
+        - Basal patterns (recurring trends in meal-free periods)
+        - Physiological patterns (dawn phenomenon, evening rise, reverse dawn)
+        - Specific events (hypoglycemia, artifacts, rapid changes)
+        - Overall clinical severity assessment
+        
+        **Access:**
+        - **Patient**: Analyze their own data
+        - **Clinician**: Analyze connected patient's data (specify patient_id)
+        
+        **Patient Age**: Optional parameter for age-appropriate physiological pattern detection.
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/AnalyzeRequest'
+                - type: object
+                  properties:
+                    patient_id:
+                      type: string
+                      format: uuid
+                      description: Required for clinicians
+      responses:
+        '200':
+          description: Analysis complete with full data coverage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+        '206':
+          description: Analysis complete with partial data coverage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Dataset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /analyze/explain:
+    post:
+      tags: [Analysis]
+      summary: Generate natural language explanation (with LLM)
+      description: |
+        Analyze data and generate natural language explanation using LLM.
+        Combines comprehensive CGM analysis with AI-generated interpretation.
+        
+        **Requires**: OPENAI_API_KEY environment variable to be configured.
+        
+        **Access:**
+        - **Patient**: Explain their own data
+        - **Clinician**: Explain connected patient's data (specify patient_id)
+        
+        **Parameters:**
+        - `lang`: Language code (en, et, etc.) for explanation text
+        - `style`: Explanation style (detailed, summary, clinical)
+        - `patient_age`: Optional for age-appropriate pattern detection
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ExplainRequest'
+                - type: object
+                  properties:
+                    patient_id:
+                      type: string
+                      format: uuid
+                      description: Required for clinicians
+      responses:
+        '200':
+          description: Explanation generated successfully with full data coverage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExplainResponse'
+        '206':
+          description: Explanation generated with partial data coverage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExplainResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Dataset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: LLM service not configured or unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
