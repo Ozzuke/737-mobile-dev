@@ -5,31 +5,9 @@ import com.example.project.domain.model.*
 
 /**
  * Mapper functions to convert analysis DTOs to domain models
+ * Note: Main conversion logic is now handled directly in CgmApiRepositoryImpl
+ * These mappers are kept for shared component conversions
  */
-
-fun AnalyzeResponseDto.toDomain(): AnalysisResult {
-    return AnalysisResult(
-        unit = unit,
-        requestedPreset = meta.requestedPreset,
-        availableDays = meta.availableDays,
-        coveragePercent = meta.coveragePercent,
-        overallRating = overall.toDomain(),
-        trends = annotations.trends.map { it.toDomain() },
-        extrema = annotations.extrema.map { it.toDomain() },
-        patterns = patterns.map { it.toDomain() },
-        summary = text.summary,
-        interpretation = text.interpretation,
-        warnings = meta.warnings
-    )
-}
-
-fun OverallRatingDto.toDomain(): OverallRating {
-    return OverallRating(
-        category = RatingCategory.fromString(category),
-        score = score,
-        reasons = reasons
-    )
-}
 
 fun TrendAnnotationDto.toDomain(): TrendAnnotation {
     return TrendAnnotation(
@@ -64,15 +42,5 @@ fun PatternInstanceDto.toDomain(): PatternInstance {
         date = date,
         startMinute = startMinute,
         endMinute = endMinute
-    )
-}
-
-fun ExplainResponseDto.toDomain(): com.example.project.domain.model.LLMExplanation {
-    return com.example.project.domain.model.LLMExplanation(
-        summary = explanation.summary,
-        interpretation = explanation.interpretation,
-        recommendations = explanation.recommendations,
-        coveragePercent = meta.coveragePercent,
-        preset = meta.preset
     )
 }
