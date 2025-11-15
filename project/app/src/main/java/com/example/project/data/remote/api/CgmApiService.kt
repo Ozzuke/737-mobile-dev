@@ -262,10 +262,17 @@ data class AnalyzeRequest(
 data class AnalyzeResponse(
     @com.squareup.moshi.Json(name = "unit") val unit: String,
     @com.squareup.moshi.Json(name = "meta") val meta: AnalysisMetaDto,
-    @com.squareup.moshi.Json(name = "overall") val overall: OverallRatingDto,
+    @com.squareup.moshi.Json(name = "overall") val overall: OverallDto,
     @com.squareup.moshi.Json(name = "annotations") val annotations: AnnotationsDto,
     @com.squareup.moshi.Json(name = "patterns") val patterns: List<PatternDto>,
     @com.squareup.moshi.Json(name = "text") val text: AnalysisTextDto
+)
+
+// Overall rating schema matching authentication-swagger.yaml
+@com.squareup.moshi.JsonClass(generateAdapter = true)
+data class OverallDto(
+    @com.squareup.moshi.Json(name = "rating") val rating: String,
+    @com.squareup.moshi.Json(name = "summary") val summary: String
 )
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)

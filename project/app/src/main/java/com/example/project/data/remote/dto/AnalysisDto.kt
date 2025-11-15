@@ -5,33 +5,9 @@ import com.squareup.moshi.JsonClass
 
 /**
  * DTOs for analysis-related API responses
+ * Note: Main response DTOs (AnalyzeResponse, ExplainResponse) are now in CgmApiService.kt
+ * This file contains shared component DTOs used across multiple endpoints
  */
-
-@JsonClass(generateAdapter = true)
-data class AnalyzeResponseDto(
-    @Json(name = "unit")
-    val unit: String,
-    @Json(name = "meta")
-    val meta: DataMetaDto,
-    @Json(name = "overall")
-    val overall: OverallRatingDto,
-    @Json(name = "annotations")
-    val annotations: AnnotationsDto,
-    @Json(name = "patterns")
-    val patterns: List<PatternDto>,
-    @Json(name = "text")
-    val text: AnalysisTextDto
-)
-
-@JsonClass(generateAdapter = true)
-data class OverallRatingDto(
-    @Json(name = "category")
-    val category: String,
-    @Json(name = "score")
-    val score: Double?,
-    @Json(name = "reasons")
-    val reasons: List<String>
-)
 
 @JsonClass(generateAdapter = true)
 data class AnnotationsDto(
@@ -95,46 +71,6 @@ data class AnalysisTextDto(
     val summary: String,
     @Json(name = "interpretation")
     val interpretation: String
-)
-
-@JsonClass(generateAdapter = true)
-data class AnalyzeRequestDto(
-    @Json(name = "dataset_id")
-    val datasetId: String,
-    @Json(name = "preset")
-    val preset: String,
-    @Json(name = "lang")
-    val lang: String = "en"
-)
-
-@JsonClass(generateAdapter = true)
-data class ExplainRequestDto(
-    @Json(name = "dataset_id")
-    val datasetId: String,
-    @Json(name = "preset")
-    val preset: String,
-    @Json(name = "lang")
-    val lang: String = "en",
-    @Json(name = "style")
-    val style: String = "detailed"
-)
-
-@JsonClass(generateAdapter = true)
-data class ExplainResponseDto(
-    @Json(name = "explanation")
-    val explanation: ExplanationDto,
-    @Json(name = "meta")
-    val meta: ExplainMetaDto
-)
-
-@JsonClass(generateAdapter = true)
-data class ExplanationDto(
-    @Json(name = "summary")
-    val summary: String,
-    @Json(name = "interpretation")
-    val interpretation: String,
-    @Json(name = "recommendations")
-    val recommendations: List<String>
 )
 
 @JsonClass(generateAdapter = true)

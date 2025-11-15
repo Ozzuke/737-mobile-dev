@@ -154,14 +154,14 @@ class CgmApiRepositoryImpl(
                     availableDays = analysisDto.meta.daysCount,
                     coveragePercent = analysisDto.meta.coveragePercent,
                     overallRating = com.example.project.domain.model.OverallRating(
-                        category = when (analysisDto.overall.category.uppercase()) {
+                        category = when (analysisDto.overall.rating.uppercase()) {
                             "GOOD" -> com.example.project.domain.model.RatingCategory.GOOD
                             "ATTENTION" -> com.example.project.domain.model.RatingCategory.ATTENTION
                             "URGENT" -> com.example.project.domain.model.RatingCategory.URGENT
                             else -> com.example.project.domain.model.RatingCategory.UNKNOWN
                         },
-                        score = analysisDto.overall.score,
-                        reasons = analysisDto.overall.reasons
+                        score = null,
+                        reasons = listOf(analysisDto.overall.summary)
                     ),
                     trends = analysisDto.annotations.trends.map { trend ->
                         com.example.project.domain.model.TrendAnnotation(
@@ -304,10 +304,10 @@ class CgmApiRepositoryImpl(
                     datasetId = uploadResponse.datasetId,
                     nickname = "",
                     createdAt = "", // Not in upload response
-                    rowCount = uploadResponse.validation.rowCount,
-                    startDate = uploadResponse.validation.timeRange.start,
-                    endDate = uploadResponse.validation.timeRange.end,
-                    unit = uploadResponse.validation.detectedUnit,
+                    rowCount = uploadResponse.totalReadings,
+                    startDate = uploadResponse.dateRange.start,
+                    endDate = uploadResponse.dateRange.end,
+                    unit = uploadResponse.unit,
                     samplingIntervalMin = 0
                 )
                 Result.success(summary)
