@@ -122,6 +122,14 @@ data class TimeRangeDto(
     val end: String
 )
 
+@JsonClass(generateAdapter = true)
+data class DateRangeDto(
+    @Json(name = "start")
+    val start: String,
+    @Json(name = "end")
+    val end: String
+)
+
 // New API upload response (for /data endpoint) - matches authentication-swagger.yaml
 @JsonClass(generateAdapter = true)
 data class UploadDataResponseDto(
