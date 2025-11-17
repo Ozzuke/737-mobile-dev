@@ -17,6 +17,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class PreferencesRepository(private val context: Context) {
 
     private val ACTIVE_DATASET_ID_KEY = stringPreferencesKey("active_dataset_id")
+    private val PREFERRED_UNIT_KEY = stringPreferencesKey("preferred_unit")
 
     /**
      * Get the active dataset ID as a Flow
@@ -42,6 +43,24 @@ class PreferencesRepository(private val context: Context) {
     suspend fun clearActiveDatasetId() {
         context.dataStore.edit { preferences ->
             preferences.remove(ACTIVE_DATASET_ID_KEY)
+        }
+    }
+
+    /**
+     * Get the preferred unit as a Flow
+     */
+    fun getPreferredUnit(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[PREFERRED_UNIT_KEY]
+        }
+    }
+
+    /**
+     * Set the preferred unit
+     */
+    suspend fun setPreferredUnit(unit: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PREFERRED_UNIT_KEY] = unit
         }
     }
 }

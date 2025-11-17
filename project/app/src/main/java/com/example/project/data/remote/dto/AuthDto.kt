@@ -71,7 +71,7 @@ data class RegisterResponseDto(
 
 @JsonClass(generateAdapter = true)
 data class UserDto(
-    @Json(name = "id") val id: String,
+    @Json(name = "id") val id: String? = null, // made nullable with default to tolerate missing id
     @Json(name = "username") val username: String,
     @Json(name = "role") val role: String,
     @Json(name = "created_at") val createdAt: String,

@@ -6,9 +6,10 @@ import com.example.project.domain.model.*
 object AuthMapper {
 
     fun mapToUser(dto: UserDto): User {
+        val safeId = dto.id ?: "" // tolerate missing id from backend
         return when (dto.role.lowercase()) {
             "patient" -> PatientProfile(
-                id = dto.id,
+                id = safeId,
                 username = dto.username,
                 role = UserRole.PATIENT,
                 createdAt = dto.createdAt,
@@ -19,7 +20,7 @@ object AuthMapper {
                 diabetesDiagnosisYear = dto.diabetesDiagnosisYear ?: 0
             )
             "clinician" -> ClinicianProfile(
-                id = dto.id,
+                id = safeId,
                 username = dto.username,
                 role = UserRole.CLINICIAN,
                 createdAt = dto.createdAt,

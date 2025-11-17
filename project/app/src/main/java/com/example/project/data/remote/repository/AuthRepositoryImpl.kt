@@ -44,7 +44,7 @@ class AuthRepositoryImpl(
                 val user = AuthMapper.mapToUser(response.body()!!.user)
                 Result.success(user)
             } else {
-                Result.failure(IOException("Registration failed: ${response.message()}"))
+                Result.failure(IOException(mapRegistrationError(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -68,7 +68,7 @@ class AuthRepositoryImpl(
                 val user = AuthMapper.mapToUser(response.body()!!.user)
                 Result.success(user)
             } else {
-                Result.failure(IOException("Registration failed: ${response.message()}"))
+                Result.failure(IOException(mapRegistrationError(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -321,5 +321,42 @@ class AuthRepositoryImpl(
         tokenManager.clearTokens()
         cachedUser = null
         preferencesRepository.clearActiveDatasetId()
+    }
+
+    // ============ ERROR MAPPING HELPERS ============
+    private fun mapRegistrationError(response: retrofit2.Response<*>): String {
+        // 409 typically indicates duplicate username or other uniqueness conflict
+        if (response.code() == 409) {
+            return extractServerMessage(response) ?: "Username already taken. Please choose another."
+        }
+        // Attempt to use server provided message if available
+        return extractServerMessage(response) ?: "Registration failed: ${response.code()} ${response.message()}"
+    }
+
+    private fun extractServerMessage(response: retrofit2.Response<*>): String? {
+        return try {
+            val raw = response.errorBody()?.string()?.trim().orEmpty()
+            if (raw.isEmpty()) return null
+            // Try simple JSON parsing without adding new dependencies
+            // Expecting something like {"message":"..."}
+            val key = "\"message\""
+            val idx = raw.indexOf(key)
+            if (idx != -1) {
+                // naive extraction
+                val after = raw.substring(idx + key.length)
+                val colonIdx = after.indexOf(':')
+                if (colonIdx != -1) {
+                    val substring = after.substring(colonIdx + 1)
+                    // Remove leading/trailing quotes/braces
+                    substring.replaceFirst(Regex("^\\s*\""), "")
+                        .replaceFirst(Regex("\"[\\s\\r\\n]*[,}].*"), "")
+                        .replace(Regex("\"$"), "")
+                        .trim()
+                        .takeIf { it.isNotBlank() }
+                } else null
+            } else null
+        } catch (_: Exception) {
+            null
+        }
     }
 }

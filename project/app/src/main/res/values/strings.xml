@@ -68,4 +68,21 @@
     <string name="upload_button_label">Upload from CSV</string>
     <string name="upload_button_description">Upload</string>
     <string name="upload_instructions">Upload a CSV file with glucose readings. The file will be saved locally and sent to the remote server for analysis.</string>
+
+    <!-- Graph Labels -->
+    <string name="glucose_levels_title">Glucose Levels (%1$s)</string>
+    <string name="current_glucose_label">Current</string>
+    <string name="graph_no_data">No data available</string>
+    <string name="graph_tap_metrics">Tap to view detailed metrics</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_units_header">Units</string>
+    <string name="settings_units_label">Preferred units</string>
+
+    <!-- Fullscreen Graph -->
+    <string name="full_graph_title">Glucose Levels (%1$s)</string>
+
+    <!-- AI Analysis -->
+    <string name="ai_analysis_label">AI Analysis</string>
 </resources>

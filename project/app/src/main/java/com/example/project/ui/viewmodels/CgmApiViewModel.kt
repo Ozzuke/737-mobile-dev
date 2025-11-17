@@ -6,10 +6,12 @@ import com.example.project.domain.model.AnalysisResult
 import com.example.project.domain.model.DatasetSummary
 import com.example.project.domain.repository.CgmApiRepository
 import com.example.project.ui.UiState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * ViewModel for managing CGM API data and UI state
@@ -86,6 +88,21 @@ class CgmApiViewModel(
     fun analyzeDataset(datasetId: String, preset: String = "24h", lang: String = "en") {
         viewModelScope.launch {
             _analysisState.value = UiState.Loading
+
+            // Quick pre-check: ensure overlay has data before analyzing
+            val overlayHasData = withContext(Dispatchers.IO) {
+                repository.getDatasetData(datasetId, preset)
+                    .mapCatching { data ->
+                        data.overlayDays.any { it.points.isNotEmpty() }
+                    }
+                    .getOrElse { false }
+            }
+
+            if (!overlayHasData) {
+                _analysisState.value = UiState.Empty
+                return@launch
+            }
+
             repository.analyzeDataset(datasetId, preset, lang)
                 .onSuccess { analysis ->
                     _analysisState.value = UiState.Success(analysis)
@@ -185,4 +202,3 @@ class CgmApiViewModel(
         }
     }
 }
-

@@ -19,9 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.project.R
 import com.example.project.domain.model.ClinicianProfile
 import com.example.project.domain.model.RatingCategory
 import com.example.project.ui.components.GlucoseGraphCard
@@ -29,6 +31,7 @@ import com.example.project.ui.UiState
 import com.example.project.ui.viewmodels.AuthViewModel
 import com.example.project.ui.viewmodels.ConnectionViewModel
 import com.example.project.ui.viewmodels.MainViewModel
+import java.util.Locale
 
 /**
  * Home screen showing latest glucose data from API
@@ -191,7 +194,8 @@ fun HomeScreen(
                             // Left: Current glucose value
                             GlucoseValueCard(
                                 glucose = homeState.latestGlucose,
-                                unit = homeState.datasetData?.unit ?: "mmol/L",
+                                unit = (homeState.preferredUnit ?: homeState.datasetData?.unit ?: ""),
+                                sourceUnit = homeState.datasetData?.unit,
                                 onClick = {
                                     homeState.latestDataset?.let { dataset ->
                                         onGraphClick(dataset.datasetId, selectedPreset)
@@ -238,7 +242,9 @@ fun HomeScreen(
                                 homeState.latestDataset?.let { dataset ->
                                     onGraphClick(dataset.datasetId, selectedPreset)
                                 }
-                            }
+                            },
+                            sourceUnit = homeState.datasetData?.unit,
+                            displayUnit = (homeState.preferredUnit ?: homeState.datasetData?.unit)
                         )
 
                         // Error message if any (but still showing data)
@@ -269,9 +275,12 @@ fun HomeScreen(
 private fun GlucoseValueCard(
     glucose: Double?,
     unit: String,
+    sourceUnit: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val displayGlucose = glucose?.let { convertGlucose(it, sourceUnit, unit) }
+
     Card(
         modifier = modifier
             .clickable(onClick = onClick)
@@ -292,9 +301,9 @@ private fun GlucoseValueCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
-            if (glucose != null) {
+            if (displayGlucose != null) {
                 Text(
-                    text = "%.1f".format(glucose),
+                    text = "%.1f".format(displayGlucose),
                     style = MaterialTheme.typography.displayLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -342,7 +351,7 @@ private fun StatusCard(
         )
         else -> Triple(
             MaterialTheme.colorScheme.surfaceVariant,
-            "UNKNOWN",
+            stringResource(id = R.string.ai_analysis_label),
             "?"
         )
     }
@@ -456,4 +465,16 @@ private fun PatientSelectorCard(
             }
         }
     }
+}
+
+// Helper conversion
+private fun convertGlucose(value: Double, fromUnit: String?, toUnit: String?): Double {
+    val from = (fromUnit ?: "").lowercase(Locale.US)
+    val to = (toUnit ?: "").lowercase(Locale.US)
+    if (from.isEmpty() || to.isEmpty() || from == to) return value
+    return if (from.contains("mg/dl") && to.contains("mmol")) {
+        value / 18.0
+    } else if (from.contains("mmol") && to.contains("mg/dl")) {
+        value * 18.0
+    } else value
 }

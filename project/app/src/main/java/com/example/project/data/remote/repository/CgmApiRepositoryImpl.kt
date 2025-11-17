@@ -10,6 +10,8 @@ import com.example.project.domain.model.AnalysisResult
 import com.example.project.domain.model.DatasetData
 import com.example.project.domain.model.DatasetSummary
 import com.example.project.domain.repository.CgmApiRepository
+import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -48,20 +50,34 @@ class CgmApiRepositoryImpl(
      */
     override suspend fun getDatasets(patientId: String?): Result<List<DatasetSummary>> = withContext(Dispatchers.IO) {
         try {
-            // Note: New API returns single dataset via /data endpoint
-            // Returning as list for compatibility with existing UI
             val response = apiService.getDatasetMetadata(patientId = patientId)
             if (response.isSuccessful && response.body() != null) {
                 val dataset = response.body()!!
+                val id = dataset.id ?: dataset.legacyDatasetId ?: "unknown"
+                val rangeStart = dataset.dateRange?.start ?: ""
+                val rangeEnd = dataset.dateRange?.end ?: ""
+                val rowCount = dataset.totalReadings ?: 0
+
+                // Best-effort sampling interval: derive from time range and readings
+                val samplingIntervalMin = runCatching {
+                    if (rowCount <= 1) 0 else {
+                        val startInstant = Instant.parse(rangeStart)
+                        val endInstant = Instant.parse(rangeEnd)
+                        val minutes = Duration.between(startInstant, endInstant).toMinutes().coerceAtLeast(0)
+                        if (minutes <= 0) 0 else (minutes / (rowCount - 1))
+                    }
+                }.getOrElse { 0 }
+                .toInt()
+
                 val summary = DatasetSummary(
-                    datasetId = dataset.id,
+                    datasetId = id,
                     nickname = "", // No nickname in new API
-                    createdAt = dataset.createdAt,
-                    rowCount = dataset.totalReadings,
-                    startDate = dataset.dateRange.start,
-                    endDate = dataset.dateRange.end,
-                    unit = dataset.unit,
-                    samplingIntervalMin = 0 // Not provided in new API
+                    createdAt = dataset.createdAt ?: "",
+                    rowCount = rowCount,
+                    startDate = rangeStart,
+                    endDate = rangeEnd,
+                    unit = dataset.unit ?: "", // removed hardcoded unit fallback
+                    samplingIntervalMin = samplingIntervalMin
                 )
                 Result.success(listOf(summary))
             } else if (response.code() == 404) {
@@ -93,17 +109,22 @@ class CgmApiRepositoryImpl(
             )
             if (response.isSuccessful && response.body() != null) {
                 val overlay = response.body()!!
-                // Convert to DatasetData format
+                val unit = overlay.unit ?: "" // no hardcoded unit, empty if missing
+                val days = overlay.overlay?.days.orEmpty()
+                val resolutionMin = runCatching {
+                    val pts = days.firstOrNull()?.points
+                    if (pts != null && pts.size >= 2) (pts[1].minute - pts[0].minute).coerceAtLeast(1) else 0
+                }.getOrElse { 0 }
                 val datasetData = DatasetData(
                     datasetId = datasetId,
-                    nickname = "",
-                    unit = overlay.unit,
-                    requestedPreset = overlay.preset,
-                    availableDays = overlay.overlay.days.size,
-                    coveragePercent = overlay.coveragePercent,
-                    resolutionMin = 15, // Assume 15-minute resolution
+                    nickname = "", // nickname not provided by API
+                    unit = unit,
+                    requestedPreset = overlay.preset ?: preset,
+                    availableDays = days.size,
+                    coveragePercent = overlay.coveragePercent ?: 0.0,
+                    resolutionMin = resolutionMin,
                     warnings = emptyList(),
-                    overlayDays = overlay.overlay.days.map { day ->
+                    overlayDays = days.map { day ->
                         com.example.project.domain.model.OverlayDay(
                             date = day.date,
                             points = day.points.map { point ->
@@ -147,23 +168,29 @@ class CgmApiRepositoryImpl(
             val response = apiService.analyze(request)
             if (response.isSuccessful && response.body() != null) {
                 val analysisDto = response.body()!!
-                // Convert to domain model
+                val unit = analysisDto.unit ?: ""
+                val meta = analysisDto.meta
+                val overall = analysisDto.overall
+                val annotations = analysisDto.annotations
+                val patternsDto = analysisDto.patterns.orEmpty()
+                val textDto = analysisDto.text
+
                 val analysis = AnalysisResult(
-                    unit = analysisDto.unit,
+                    unit = unit,
                     requestedPreset = preset,
-                    availableDays = analysisDto.meta.daysCount,
-                    coveragePercent = analysisDto.meta.coveragePercent,
+                    availableDays = meta?.daysCount ?: 0,
+                    coveragePercent = meta?.coveragePercent ?: 0.0,
                     overallRating = com.example.project.domain.model.OverallRating(
-                        category = when (analysisDto.overall.rating.uppercase()) {
+                        category = when (overall?.rating?.uppercase()) {
                             "GOOD" -> com.example.project.domain.model.RatingCategory.GOOD
                             "ATTENTION" -> com.example.project.domain.model.RatingCategory.ATTENTION
                             "URGENT" -> com.example.project.domain.model.RatingCategory.URGENT
                             else -> com.example.project.domain.model.RatingCategory.UNKNOWN
                         },
                         score = null,
-                        reasons = listOf(analysisDto.overall.summary)
+                        reasons = listOfNotNull(overall?.summary)
                     ),
-                    trends = analysisDto.annotations.trends.map { trend ->
+                    trends = annotations?.trends.orEmpty().map { trend ->
                         com.example.project.domain.model.TrendAnnotation(
                             startMinute = trend.startMinute,
                             endMinute = trend.endMinute,
@@ -176,7 +203,7 @@ class CgmApiRepositoryImpl(
                             exampleSpan = trend.exampleSpan
                         )
                     },
-                    extrema = analysisDto.annotations.extrema.map { extrema ->
+                    extrema = annotations?.extrema.orEmpty().map { extrema ->
                         com.example.project.domain.model.ExtremaAnnotation(
                             minute = extrema.minute,
                             value = extrema.value,
@@ -187,7 +214,7 @@ class CgmApiRepositoryImpl(
                             }
                         )
                     },
-                    patterns = analysisDto.patterns.map { pattern ->
+                    patterns = patternsDto.map { pattern ->
                         com.example.project.domain.model.Pattern(
                             key = pattern.key,
                             name = pattern.name,
@@ -207,8 +234,8 @@ class CgmApiRepositoryImpl(
                             }
                         )
                     },
-                    summary = analysisDto.text.summary,
-                    interpretation = analysisDto.text.interpretation,
+                    summary = textDto?.summary ?: "",
+                    interpretation = textDto?.interpretation ?: "",
                     warnings = emptyList()
                 )
                 Result.success(analysis)
@@ -246,12 +273,20 @@ class CgmApiRepositoryImpl(
             val response = apiService.explain(request)
             if (response.isSuccessful && response.body() != null) {
                 val explainDto = response.body()!!
+                val meta = explainDto.meta
+                val explanationText = when (val ex = explainDto.explanation) {
+                    is String -> ex
+                    is Map<*, *> -> ex["text"] as? String ?: ex.toString()
+                    is List<*> -> ex.joinToString("\n") { it.toString() }
+                    null -> ""
+                    else -> ex.toString()
+                }
                 val explanation = com.example.project.domain.model.LLMExplanation(
-                    summary = explainDto.explanation,
-                    interpretation = explainDto.explanation,
-                    recommendations = emptyList(), // Not separate in new API
-                    coveragePercent = explainDto.meta.coveragePercent,
-                    preset = explainDto.meta.preset
+                    summary = explanationText,
+                    interpretation = explanationText,
+                    recommendations = emptyList(),
+                    coveragePercent = meta?.coveragePercent ?: 0.0,
+                    preset = meta?.preset ?: preset
                 )
                 Result.success(explanation)
             } else {

@@ -14,9 +14,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.project.R
 import com.example.project.domain.model.DatasetSummary
 import com.example.project.ui.components.EmptyView
 import com.example.project.ui.components.ErrorView
@@ -37,6 +39,7 @@ fun DatasetsScreen(
     onBackClick: () -> Unit = {},
     onDatasetClick: (String) -> Unit = {},
     onSetActiveDataset: (String) -> Unit = {},
+    onDeleteDataset: (String) -> Unit = {},
     viewModel: CgmApiViewModel = viewModel()
 ) {
     val datasetsState by viewModel.datasetsState.collectAsState()
@@ -50,12 +53,12 @@ fun DatasetsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Remote Datasets") },
+                title = { Text(stringResource(id = R.string.datasets_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(id = R.string.back_button_description),
                             tint = colorScheme.onPrimary
                         )
                     }
@@ -64,7 +67,7 @@ fun DatasetsScreen(
                     IconButton(onClick = { viewModel.retryFetchDatasets() }) {
                         Icon(
                             Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(id = R.string.refresh_button_description),
                             tint = colorScheme.onPrimary
                         )
                     }
@@ -83,20 +86,14 @@ fun DatasetsScreen(
                 .fillMaxSize()
         ) {
             when (val state = datasetsState) {
-                is UiState.Idle -> {
-                    // Initial state - could show a welcome message
-                }
-                is UiState.Loading -> {
-                    LoadingView("Loading datasets...")
-                }
+                is UiState.Idle -> { }
+                is UiState.Loading -> { LoadingView(stringResource(id = R.string.loading_datasets)) }
                 is UiState.Success -> {
                     DatasetsList(
                         datasets = state.data,
                         onDatasetClick = onDatasetClick,
                         onSetActiveDataset = onSetActiveDataset,
-                        onDeleteDataset = { datasetId ->
-                            viewModel.deleteDataset(datasetId)
-                        }
+                        onDeleteDataset = onDeleteDataset
                     )
                 }
                 is UiState.Error -> {
@@ -105,9 +102,7 @@ fun DatasetsScreen(
                         onRetry = { viewModel.retryFetchDatasets() }
                     )
                 }
-                is UiState.Empty -> {
-                    EmptyView(message = "No datasets available")
-                }
+                is UiState.Empty -> { EmptyView(message = stringResource(id = R.string.no_datasets_available)) }
             }
         }
     }

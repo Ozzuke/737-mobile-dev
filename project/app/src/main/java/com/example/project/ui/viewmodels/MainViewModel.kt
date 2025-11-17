@@ -14,6 +14,7 @@ import com.example.project.domain.repository.CgmApiRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -31,7 +32,8 @@ data class HomeScreenState(
     val datasetData: DatasetData? = null,
     val analysis: AnalysisResult? = null,
     val selectedPreset: String = "24h",
-    val selectedPatientId: String? = null
+    val selectedPatientId: String? = null,
+    val preferredUnit: String? = null
 )
 
 /**
@@ -46,6 +48,15 @@ class MainViewModel(
 
     private val _homeState = MutableStateFlow(HomeScreenState())
     val homeState: StateFlow<HomeScreenState> = _homeState.asStateFlow()
+
+    init {
+        // Observe preferred unit setting continuously
+        viewModelScope.launch {
+            preferencesRepository.getPreferredUnit().collect { unit ->
+                _homeState.value = _homeState.value.copy(preferredUnit = unit)
+            }
+        }
+    }
 
     // Don't fetch in init - let the UI trigger it with LaunchedEffect
     // This prevents crashes during ViewModel initialization
@@ -116,8 +127,7 @@ class MainViewModel(
                         // Fetch dataset data (overlay)
                         fetchDatasetData(latestDataset.datasetId, preset, patientId)
 
-                        // Fetch analysis
-                        fetchAnalysis(latestDataset.datasetId, preset, patientId)
+                        // Analyze will be triggered inside fetchDatasetData after data is confirmed
                     }
                     .onFailure { error ->
                         _homeState.value = _homeState.value.copy(
@@ -135,11 +145,16 @@ class MainViewModel(
     private suspend fun fetchDatasetById(datasetId: String, preset: String, patientId: String?) {
         repository.getDatasets(patientId)
             .onSuccess { datasets ->
+                if (datasets.isEmpty()) {
+                    clearAllDatasetState()
+                    return@onSuccess
+                }
+
                 val dataset = datasets.firstOrNull { it.datasetId == datasetId }
                 if (dataset != null) {
                     _homeState.value = _homeState.value.copy(latestDataset = dataset)
                     fetchDatasetData(datasetId, preset, patientId)
-                    fetchAnalysis(datasetId, preset, patientId)
+                    // Analyze will be triggered inside fetchDatasetData after data is confirmed
                 } else {
                     _homeState.value = _homeState.value.copy(
                         isLoading = false,
@@ -161,15 +176,38 @@ class MainViewModel(
     private suspend fun fetchDatasetData(datasetId: String, preset: String, patientId: String?) {
         repository.getDatasetData(datasetId, preset, patientId)
             .onSuccess { data ->
-                // Extract latest glucose value
                 val latestPoint = data.overlayDays.lastOrNull()?.points?.lastOrNull()
                 val latestGlucose = latestPoint?.glucose
 
+                // Derive rowCount and interval from overlay if original dataset summary lacks them
+                val pointsTotal = data.overlayDays.sumOf { it.points.size }
+                val derivedInterval = runCatching {
+                    val firstDay = data.overlayDays.firstOrNull()
+                    val pts = firstDay?.points
+                    if (pts != null && pts.size >= 2) (pts[1].minute - pts[0].minute).coerceAtLeast(1) else data.resolutionMin
+                }.getOrElse { data.resolutionMin }
+
+                val currentSummary = _homeState.value.latestDataset
+                val enrichedSummary = if (currentSummary != null) {
+                    if (currentSummary.rowCount == 0 || currentSummary.samplingIntervalMin == 0) {
+                        currentSummary.copy(
+                            rowCount = if (currentSummary.rowCount == 0) pointsTotal else currentSummary.rowCount,
+                            samplingIntervalMin = if (currentSummary.samplingIntervalMin == 0) derivedInterval else currentSummary.samplingIntervalMin
+                        )
+                    } else currentSummary
+                } else null
+
+                // Update state
                 _homeState.value = _homeState.value.copy(
                     datasetData = data,
                     latestGlucose = latestGlucose,
+                    latestDataset = enrichedSummary,
                     isLoading = false
                 )
+                // Trigger analysis only when we have points
+                if (data.overlayDays.any { it.points.isNotEmpty() }) {
+                    fetchAnalysis(datasetId, preset, patientId)
+                }
             }
             .onFailure { error ->
                 _homeState.value = _homeState.value.copy(
@@ -211,6 +249,20 @@ class MainViewModel(
      */
     fun retry() {
         fetchLatestData()
+    }
+
+    /**
+     * Clear all dataset-related state
+     */
+    fun clearAllDatasetState() {
+        _homeState.value = _homeState.value.copy(
+            latestDataset = null,
+            datasetData = null,
+            analysis = null,
+            latestGlucose = null,
+            status = null,
+            error = null
+        )
     }
 
     /**

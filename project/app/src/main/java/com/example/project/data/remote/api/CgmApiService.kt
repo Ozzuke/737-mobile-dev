@@ -222,32 +222,33 @@ interface CgmApiService {
 // New DTOs for updated endpoints
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class DatasetItem(
-    @com.squareup.moshi.Json(name = "id") val id: String,
-    @com.squareup.moshi.Json(name = "patient_id") val patientId: String,
-    @com.squareup.moshi.Json(name = "unit") val unit: String,
-    @com.squareup.moshi.Json(name = "total_readings") val totalReadings: Int,
-    @com.squareup.moshi.Json(name = "date_range") val dateRange: DateRangeDto,
-    @com.squareup.moshi.Json(name = "created_at") val createdAt: String,
-    @com.squareup.moshi.Json(name = "updated_at") val updatedAt: String
+    @com.squareup.moshi.Json(name = "id") val id: String? = null, // nullable to avoid JsonDataException
+    @com.squareup.moshi.Json(name = "dataset_id") val legacyDatasetId: String? = null, // support older field name
+    @com.squareup.moshi.Json(name = "patient_id") val patientId: String?,
+    @com.squareup.moshi.Json(name = "unit") val unit: String?,
+    @com.squareup.moshi.Json(name = "total_readings") val totalReadings: Int?,
+    @com.squareup.moshi.Json(name = "date_range") val dateRange: DateRangeDto?,
+    @com.squareup.moshi.Json(name = "created_at") val createdAt: String? = null,
+    @com.squareup.moshi.Json(name = "updated_at") val updatedAt: String? = null
 )
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class DateRangeDto(
-    @com.squareup.moshi.Json(name = "start") val start: String,
-    @com.squareup.moshi.Json(name = "end") val end: String
+    @com.squareup.moshi.Json(name = "start") val start: String? = null,
+    @com.squareup.moshi.Json(name = "end") val end: String? = null
 )
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class DataOverlayResponse(
-    @com.squareup.moshi.Json(name = "unit") val unit: String,
-    @com.squareup.moshi.Json(name = "preset") val preset: String,
-    @com.squareup.moshi.Json(name = "coverage_percent") val coveragePercent: Double,
-    @com.squareup.moshi.Json(name = "overlay") val overlay: OverlayDataDto
+    @com.squareup.moshi.Json(name = "unit") val unit: String?,
+    @com.squareup.moshi.Json(name = "preset") val preset: String?,
+    @com.squareup.moshi.Json(name = "coverage_percent") val coveragePercent: Double?,
+    @com.squareup.moshi.Json(name = "overlay") val overlay: OverlayDataDto?
 )
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class OverlayDataDto(
-    @com.squareup.moshi.Json(name = "days") val days: List<OverlayDayDto>
+    @com.squareup.moshi.Json(name = "days") val days: List<OverlayDayDto>?
 )
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
@@ -260,26 +261,26 @@ data class AnalyzeRequest(
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class AnalyzeResponse(
-    @com.squareup.moshi.Json(name = "unit") val unit: String,
-    @com.squareup.moshi.Json(name = "meta") val meta: AnalysisMetaDto,
-    @com.squareup.moshi.Json(name = "overall") val overall: OverallDto,
-    @com.squareup.moshi.Json(name = "annotations") val annotations: AnnotationsDto,
-    @com.squareup.moshi.Json(name = "patterns") val patterns: List<PatternDto>,
-    @com.squareup.moshi.Json(name = "text") val text: AnalysisTextDto
+    @com.squareup.moshi.Json(name = "unit") val unit: String?,
+    @com.squareup.moshi.Json(name = "meta") val meta: AnalysisMetaDto?,
+    @com.squareup.moshi.Json(name = "overall") val overall: OverallDto?,
+    @com.squareup.moshi.Json(name = "annotations") val annotations: AnnotationsDto?,
+    @com.squareup.moshi.Json(name = "patterns") val patterns: List<PatternDto>?,
+    @com.squareup.moshi.Json(name = "text") val text: AnalysisTextDto?
 )
 
 // Overall rating schema matching authentication-swagger.yaml
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class OverallDto(
-    @com.squareup.moshi.Json(name = "rating") val rating: String,
-    @com.squareup.moshi.Json(name = "summary") val summary: String
+    @com.squareup.moshi.Json(name = "rating") val rating: String?,
+    @com.squareup.moshi.Json(name = "summary") val summary: String?
 )
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class AnalysisMetaDto(
-    @com.squareup.moshi.Json(name = "coverage_percent") val coveragePercent: Double,
-    @com.squareup.moshi.Json(name = "resolution_min") val resolutionMin: Int,
-    @com.squareup.moshi.Json(name = "days_count") val daysCount: Int
+    @com.squareup.moshi.Json(name = "coverage_percent") val coveragePercent: Double?,
+    @com.squareup.moshi.Json(name = "resolution_min") val resolutionMin: Int?,
+    @com.squareup.moshi.Json(name = "days_count") val daysCount: Int?
 )
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
@@ -293,6 +294,8 @@ data class ExplainRequest(
 
 @com.squareup.moshi.JsonClass(generateAdapter = true)
 data class ExplainResponse(
-    @com.squareup.moshi.Json(name = "explanation") val explanation: String,
-    @com.squareup.moshi.Json(name = "meta") val meta: ExplainMetaDto
+    @com.squareup.moshi.Json(name = "explanation") val explanation: Any?,
+    @com.squareup.moshi.Json(name = "meta") val meta: ExplainMetaDto?
 )
+
+// NOTE: DatasetItem & DateRangeDto remain as previously edited (nullable fields) to avoid crashes.

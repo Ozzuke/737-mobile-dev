@@ -26,6 +26,10 @@ sealed class Screen(val route: String) {
     data object LLMAnalysis : Screen("llm-analysis/{datasetId}") {
         fun createRoute(datasetId: String) = "llm-analysis/$datasetId"
     }
+    data object Settings : Screen("settings")
+    data object FullGraph : Screen("full_graph/{preset}") {
+        fun createRoute(preset: String) = "full_graph/$preset"
+    }
 }
 
 @Composable
@@ -117,17 +121,15 @@ fun AppNav() {
 
             HomeScreen(
                 onAddClick = { navController.navigate(Screen.Upload.route) },
-                onSettingsClick = { /* TODO: Settings screen */ },
+                onSettingsClick = { navController.navigate(Screen.Settings.route) },
                 onInfoClick = { navController.navigate(Screen.Datasets.route) },
                 onProfileClick = { navController.navigate(Screen.Profile.route) },
                 onConnectionsClick = { navController.navigate(Screen.Connections.route) },
                 onStatusClick = { datasetId ->
                     navController.navigate(Screen.LLMAnalysis.createRoute(datasetId))
                 },
-                onGraphClick = { datasetId, _ ->
-                    // For now, clicking graph also opens analysis
-                    // TODO: Create dedicated metrics screen if needed
-                    navController.navigate(Screen.Analysis.createRoute(datasetId))
+                onGraphClick = { _, preset ->
+                    navController.navigate(Screen.FullGraph.createRoute(preset))
                 },
                 onOfflineClick = {
                     showOfflineDisclaimer = true
@@ -179,7 +181,6 @@ fun AppNav() {
             DatasetsScreen(
                 onBackClick = { navController.popBackStack() },
                 onDatasetClick = { datasetId ->
-                    // Set active dataset and refresh home screen, then show analysis
                     coroutineScope.launch {
                         application.preferencesRepository.setActiveDatasetId(datasetId)
                         mainViewModel.fetchLatestData()
@@ -187,10 +188,18 @@ fun AppNav() {
                     navController.navigate(Screen.Analysis.createRoute(datasetId))
                 },
                 onSetActiveDataset = { datasetId ->
-                    // Set active dataset and refresh home screen
                     coroutineScope.launch {
                         application.preferencesRepository.setActiveDatasetId(datasetId)
                         mainViewModel.fetchLatestData()
+                    }
+                },
+                onDeleteDataset = { datasetId ->
+                    // Call deletion and clear state on success
+                    cgmApiViewModel.deleteDataset(datasetId) {
+                        coroutineScope.launch {
+                            application.preferencesRepository.clearActiveDatasetId()
+                            mainViewModel.clearAllDatasetState()
+                        }
                     }
                 },
                 viewModel = cgmApiViewModel
@@ -220,6 +229,27 @@ fun AppNav() {
                 datasetId = datasetId,
                 onBackClick = { navController.popBackStack() },
                 viewModel = cgmApiViewModel
+            )
+        }
+        composable(Screen.Settings.route) {
+            val scope = rememberCoroutineScope()
+            SettingsScreen(
+                onBackClick = { navController.popBackStack() },
+                getPreferredUnit = { application.preferencesRepository.getPreferredUnit() },
+                setPreferredUnit = { unit ->
+                    scope.launch { application.preferencesRepository.setPreferredUnit(unit) }
+                }
+            )
+        }
+        composable(
+            route = Screen.FullGraph.route,
+            arguments = listOf(navArgument("preset") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val preset = backStackEntry.arguments?.getString("preset") ?: "24h"
+            FullscreenGraphScreen(
+                preset = preset,
+                homeViewModel = mainViewModel,
+                onDismiss = { navController.popBackStack() }
             )
         }
     }
