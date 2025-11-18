@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.project.R
@@ -40,14 +41,20 @@ fun DatasetsScreen(
     onDatasetClick: (String) -> Unit = {},
     onSetActiveDataset: (String) -> Unit = {},
     onDeleteDataset: (String) -> Unit = {},
-    viewModel: CgmApiViewModel = viewModel()
+    viewModel: CgmApiViewModel = viewModel(),
+    patientId: String? = null,
+    isClinician: Boolean = false
 ) {
     val datasetsState by viewModel.datasetsState.collectAsState()
     val colorScheme = MaterialTheme.colorScheme
 
     // Fetch datasets when screen loads
-    LaunchedEffect(Unit) {
-        viewModel.fetchDatasets()
+    LaunchedEffect(patientId) {
+        if (isClinician && patientId == null) {
+            viewModel.clearDatasetsState()
+        } else {
+            viewModel.fetchDatasets(patientId)
+        }
     }
 
     Scaffold(
@@ -64,7 +71,7 @@ fun DatasetsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.retryFetchDatasets() }) {
+                    IconButton(onClick = { viewModel.retryFetchDatasets(patientId) }) {
                         Icon(
                             Icons.Default.Refresh,
                             contentDescription = stringResource(id = R.string.refresh_button_description),
@@ -85,24 +92,28 @@ fun DatasetsScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            when (val state = datasetsState) {
-                is UiState.Idle -> { }
-                is UiState.Loading -> { LoadingView(stringResource(id = R.string.loading_datasets)) }
-                is UiState.Success -> {
-                    DatasetsList(
-                        datasets = state.data,
-                        onDatasetClick = onDatasetClick,
-                        onSetActiveDataset = onSetActiveDataset,
-                        onDeleteDataset = onDeleteDataset
-                    )
+            if (isClinician && patientId == null) {
+                ClinicianDatasetsEmptyState()
+            } else {
+                when (val state = datasetsState) {
+                    is UiState.Idle -> { }
+                    is UiState.Loading -> { LoadingView(stringResource(id = R.string.loading_datasets)) }
+                    is UiState.Success -> {
+                        DatasetsList(
+                            datasets = state.data,
+                            onDatasetClick = onDatasetClick,
+                            onSetActiveDataset = onSetActiveDataset,
+                            onDeleteDataset = onDeleteDataset
+                        )
+                    }
+                    is UiState.Error -> {
+                        ErrorView(
+                            message = state.message,
+                            onRetry = { viewModel.retryFetchDatasets(patientId) }
+                        )
+                    }
+                    is UiState.Empty -> { EmptyView(message = stringResource(id = R.string.no_datasets_available)) }
                 }
-                is UiState.Error -> {
-                    ErrorView(
-                        message = state.message,
-                        onRetry = { viewModel.retryFetchDatasets() }
-                    )
-                }
-                is UiState.Empty -> { EmptyView(message = stringResource(id = R.string.no_datasets_available)) }
             }
         }
     }
@@ -238,5 +249,22 @@ private fun DatasetCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ClinicianDatasetsEmptyState() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Select a patient to view their datasets",
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
     }
 }

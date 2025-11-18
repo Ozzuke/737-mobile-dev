@@ -82,7 +82,7 @@ fun DisclaimerDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
 
-                Divider()
+                HorizontalDivider()
 
                 Text(
                     text = "Not Medical Advice",
@@ -95,7 +95,7 @@ fun DisclaimerDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
 
-                Divider()
+                HorizontalDivider()
 
                 Text(
                     text = "Consult Healthcare Professionals",
@@ -108,7 +108,7 @@ fun DisclaimerDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
 
-                Divider()
+                HorizontalDivider()
 
                 Text(
                     text = "No Liability",

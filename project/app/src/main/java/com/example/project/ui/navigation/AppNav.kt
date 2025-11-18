@@ -41,6 +41,7 @@ fun AppNav() {
     // Get application instance for dependency injection
     val context = androidx.compose.ui.platform.LocalContext.current
     val application = context.applicationContext as com.example.project.CGMApplication
+    val darkModeFlow = remember { application.preferencesRepository.getDarkModeEnabled() }
 
     // Create ViewModels with injected repositories
     val authViewModel: AuthViewModel = viewModel(
@@ -71,6 +72,7 @@ fun AppNav() {
             context = context.applicationContext
         )
     )
+    val homeState by mainViewModel.homeState.collectAsState()
 
     // Observe authentication state
     val isAuthenticated by authViewModel.isAuthenticated.collectAsStateWithLifecycle()
@@ -194,15 +196,16 @@ fun AppNav() {
                     }
                 },
                 onDeleteDataset = { datasetId ->
-                    // Call deletion and clear state on success
-                    cgmApiViewModel.deleteDataset(datasetId) {
+                    cgmApiViewModel.deleteDataset(datasetId, homeState.selectedPatientId) {
                         coroutineScope.launch {
                             application.preferencesRepository.clearActiveDatasetId()
                             mainViewModel.clearAllDatasetState()
                         }
                     }
                 },
-                viewModel = cgmApiViewModel
+                viewModel = cgmApiViewModel,
+                patientId = homeState.selectedPatientId,
+                isClinician = homeState.isClinician
             )
         }
         composable(
@@ -233,11 +236,16 @@ fun AppNav() {
         }
         composable(Screen.Settings.route) {
             val scope = rememberCoroutineScope()
+            val darkMode by darkModeFlow.collectAsState(initial = null)
             SettingsScreen(
                 onBackClick = { navController.popBackStack() },
                 getPreferredUnit = { application.preferencesRepository.getPreferredUnit() },
                 setPreferredUnit = { unit ->
                     scope.launch { application.preferencesRepository.setPreferredUnit(unit) }
+                },
+                darkModeEnabled = darkMode ?: false,
+                onDarkModeChanged = { enabled ->
+                    scope.launch { application.preferencesRepository.setDarkModeEnabled(enabled) }
                 }
             )
         }

@@ -14,8 +14,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val app = application as CGMApplication
         setContent {
-            ProjectTheme(darkTheme = isSystemInDarkTheme(), dynamicColor = false) {
+            val darkModePreference by app.preferencesRepository.getDarkModeEnabled().collectAsState(initial = null)
+            val systemPrefersDark = isSystemInDarkTheme()
+            ProjectTheme(darkTheme = darkModePreference ?: systemPrefersDark, dynamicColor = false) {
                 var showDisclaimer by remember { mutableStateOf(true) }
 
                 if (showDisclaimer) {

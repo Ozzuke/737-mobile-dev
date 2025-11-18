@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.project.R
@@ -58,6 +59,9 @@ fun HomeScreen(
 
     // Check if user is a clinician
     val isClinician = currentUser is ClinicianProfile
+    LaunchedEffect(isClinician) {
+        mainViewModel.setClinicianMode(isClinician)
+    }
 
     // Fetch connected patients for clinicians
     LaunchedEffect(isClinician) {
@@ -66,9 +70,11 @@ fun HomeScreen(
         }
     }
 
-    // Trigger initial data fetch
-    LaunchedEffect(Unit) {
-        mainViewModel.fetchLatestData()
+    // Trigger initial data fetch only when not clinician or patient selected
+    LaunchedEffect(isClinician, homeState.selectedPatientId) {
+        if (!isClinician || homeState.selectedPatientId != null) {
+            mainViewModel.fetchLatestData()
+        }
     }
 
     Scaffold(
@@ -176,14 +182,16 @@ fun HomeScreen(
                         // Patient selector for clinicians
                         if (isClinician && connectedPatientsState is UiState.Success) {
                             val patients = (connectedPatientsState as UiState.Success).data
-                            if (patients.isNotEmpty()) {
-                                PatientSelectorCard(
-                                    patients = patients,
-                                    selectedPatientId = homeState.selectedPatientId,
-                                    onPatientSelected = { patientId ->
-                                        mainViewModel.setSelectedPatientId(patientId)
-                                    }
-                                )
+                            PatientSelectorCard(
+                                patients = patients,
+                                selectedPatientId = homeState.selectedPatientId,
+                                onPatientSelected = { patientId ->
+                                    mainViewModel.setSelectedPatientId(patientId)
+                                }
+                            )
+                            if (homeState.selectedPatientId == null) {
+                                ClinicianEmptyState()
+                                return@Column
                             }
                         }
                         // Current glucose + status indicator (side by side)
@@ -375,14 +383,16 @@ private fun StatusCard(
                 text = icon,
                 style = MaterialTheme.typography.displayLarge,
                 fontSize = 48.sp,
-                color = Color.White
+                color = Color.White,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = Color.White,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
     }
@@ -400,6 +410,11 @@ private fun PatientSelectorCard(
     onPatientSelected: (String?) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val displayValue = when {
+        selectedPatientId == null -> "Select Patient"
+        else -> patients.find { it.id == selectedPatientId }?.nickname ?: "Select Patient"
+    }
+    val options = listOf<Pair<String?, String>>(null to "Select patient") + patients.map { it.id to it.nickname }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -418,11 +433,7 @@ private fun PatientSelectorCard(
                 onExpandedChange = { expanded = !expanded }
             ) {
                 OutlinedTextField(
-                    value = if (selectedPatientId == null) {
-                        "My Own Data"
-                    } else {
-                        patients.find { it.id == selectedPatientId }?.nickname ?: "Select Patient"
-                    },
+                    value = displayValue,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Patient") },
@@ -442,26 +453,46 @@ private fun PatientSelectorCard(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
-                    // Option for clinician's own data
-                    DropdownMenuItem(
-                        text = { Text("My Own Data") },
-                        onClick = {
-                            onPatientSelected(null)
-                            expanded = false
-                        }
-                    )
-
-                    // Options for connected patients
-                    patients.forEach { patient ->
+                    options.forEach { (id, label) ->
                         DropdownMenuItem(
-                            text = { Text(patient.nickname) },
+                            text = { Text(label) },
                             onClick = {
-                                onPatientSelected(patient.id)
+                                onPatientSelected(id)
                                 expanded = false
                             }
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClinicianEmptyState() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Select a patient to view data",
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Box(
+                modifier = Modifier
+                    .height(180.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No data to display", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

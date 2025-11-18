@@ -51,37 +51,39 @@ class CgmApiRepositoryImpl(
     override suspend fun getDatasets(patientId: String?): Result<List<DatasetSummary>> = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getDatasetMetadata(patientId = patientId)
-            if (response.isSuccessful && response.body() != null) {
-                val dataset = response.body()!!
-                val id = dataset.id ?: dataset.legacyDatasetId ?: "unknown"
-                val rangeStart = dataset.dateRange?.start ?: ""
-                val rangeEnd = dataset.dateRange?.end ?: ""
-                val rowCount = dataset.totalReadings ?: 0
+            if (response.isSuccessful) {
+                val dataset = response.body()
+                if (dataset == null) {
+                    Result.success(emptyList())
+                } else {
+                    val datasetId = dataset.id ?: dataset.legacyDatasetId ?: "unknown"
+                    val start = dataset.dateRange?.start ?: ""
+                    val end = dataset.dateRange?.end ?: ""
+                    val rowCount = dataset.totalReadings ?: 0
+                    val samplingIntervalMin = runCatching {
+                        if (rowCount <= 1 || start.isBlank() || end.isBlank()) {
+                            0
+                        } else {
+                            val startInstant = Instant.parse(start)
+                            val endInstant = Instant.parse(end)
+                            val minutes = Duration.between(startInstant, endInstant).toMinutes().coerceAtLeast(0)
+                            if (minutes <= 0) 0 else (minutes / (rowCount - 1)).toInt()
+                        }
+                    }.getOrElse { 0 }
 
-                // Best-effort sampling interval: derive from time range and readings
-                val samplingIntervalMin = runCatching {
-                    if (rowCount <= 1) 0 else {
-                        val startInstant = Instant.parse(rangeStart)
-                        val endInstant = Instant.parse(rangeEnd)
-                        val minutes = Duration.between(startInstant, endInstant).toMinutes().coerceAtLeast(0)
-                        if (minutes <= 0) 0 else (minutes / (rowCount - 1))
-                    }
-                }.getOrElse { 0 }
-                .toInt()
-
-                val summary = DatasetSummary(
-                    datasetId = id,
-                    nickname = "", // No nickname in new API
-                    createdAt = dataset.createdAt ?: "",
-                    rowCount = rowCount,
-                    startDate = rangeStart,
-                    endDate = rangeEnd,
-                    unit = dataset.unit ?: "", // removed hardcoded unit fallback
-                    samplingIntervalMin = samplingIntervalMin
-                )
-                Result.success(listOf(summary))
+                    val summary = DatasetSummary(
+                        datasetId = datasetId,
+                        nickname = "",
+                        createdAt = dataset.createdAt ?: "",
+                        rowCount = rowCount,
+                        startDate = start,
+                        endDate = end,
+                        unit = dataset.unit ?: "",
+                        samplingIntervalMin = samplingIntervalMin
+                    )
+                    Result.success(listOf(summary))
+                }
             } else if (response.code() == 404) {
-                // No dataset found
                 Result.success(emptyList())
             } else {
                 Result.failure(Exception(getErrorMessage(response)))

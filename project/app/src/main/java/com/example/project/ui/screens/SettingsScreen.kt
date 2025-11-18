@@ -17,12 +17,16 @@ import com.example.project.R
 fun SettingsScreen(
     onBackClick: () -> Unit,
     getPreferredUnit: () -> Flow<String?>,
-    setPreferredUnit: (String) -> Unit
+    setPreferredUnit: (String) -> Unit,
+    darkModeEnabled: Boolean,
+    onDarkModeChanged: (Boolean) -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val currentPref by getPreferredUnit().collectAsState(initial = null)
 
     var selectedUnit by remember(currentPref) { mutableStateOf(currentPref ?: "mmol/L") }
+    var darkModeToggle by remember { mutableStateOf(darkModeEnabled) }
+    LaunchedEffect(darkModeEnabled) { darkModeToggle = darkModeEnabled }
 
     Scaffold(
         topBar = {
@@ -64,6 +68,28 @@ fun SettingsScreen(
                     }
                 )
             }
+            HorizontalDivider()
+            Text(text = stringResource(id = R.string.settings_theme_header), style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = stringResource(id = R.string.settings_dark_mode_label), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = stringResource(id = R.string.settings_dark_mode_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = darkModeToggle,
+                    onCheckedChange = { enabled ->
+                        darkModeToggle = enabled
+                        onDarkModeChanged(enabled)
+                    }
+                )
+            }
         }
     }
 }
@@ -84,4 +110,3 @@ private fun SegmentedButton(
         }
     }
 }
-

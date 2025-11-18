@@ -33,7 +33,8 @@ data class HomeScreenState(
     val analysis: AnalysisResult? = null,
     val selectedPreset: String = "24h",
     val selectedPatientId: String? = null,
-    val preferredUnit: String? = null
+    val preferredUnit: String? = null,
+    val isClinician: Boolean = false
 )
 
 /**
@@ -79,12 +80,30 @@ class MainViewModel(
     }
 
     /**
+     * Set the clinician mode, affecting UI and data fetching logic
+     */
+    fun setClinicianMode(isClinician: Boolean) {
+        if (_homeState.value.isClinician != isClinician) {
+            _homeState.value = _homeState.value.copy(isClinician = isClinician)
+            if (!isClinician) {
+                // If switching out of clinician mode, clear patient selection
+                _homeState.value = _homeState.value.copy(selectedPatientId = null)
+            }
+        }
+    }
+
+    /**
      * Set the selected patient ID for clinicians
      */
     fun setSelectedPatientId(patientId: String?) {
         _homeState.value = _homeState.value.copy(selectedPatientId = patientId)
-        // Refresh data with new patient ID
-        fetchLatestData()
+        if (patientId == null && _homeState.value.isClinician) {
+            // If clinician mode and patient ID is cleared, reset dataset state
+            clearAllDatasetState()
+        } else {
+            // Refetch data for the new patient selection
+            fetchLatestData()
+        }
     }
 
     /**
@@ -94,13 +113,18 @@ class MainViewModel(
         viewModelScope.launch {
             _homeState.value = _homeState.value.copy(isLoading = true, error = null, selectedPreset = preset)
 
+            val patientId = _homeState.value.selectedPatientId
+            if (_homeState.value.isClinician && patientId == null) {
+                // Don't attempt to fetch data if in clinician mode without a patient selected
+                _homeState.value = _homeState.value.copy(isLoading = false)
+                return@launch
+            }
+
             // Check connectivity
             checkConnectivity()
 
             // Get active dataset ID from preferences
             val activeDatasetId = preferencesRepository.getActiveDatasetId().first()
-
-            val patientId = _homeState.value.selectedPatientId
 
             if (activeDatasetId != null) {
                 // Use the active dataset
@@ -261,7 +285,8 @@ class MainViewModel(
             analysis = null,
             latestGlucose = null,
             status = null,
-            error = null
+            error = null,
+            isLoading = false
         )
     }
 

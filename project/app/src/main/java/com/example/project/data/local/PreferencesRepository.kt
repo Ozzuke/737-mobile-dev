@@ -3,6 +3,7 @@ package com.example.project.data.local
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -18,6 +19,7 @@ class PreferencesRepository(private val context: Context) {
 
     private val ACTIVE_DATASET_ID_KEY = stringPreferencesKey("active_dataset_id")
     private val PREFERRED_UNIT_KEY = stringPreferencesKey("preferred_unit")
+    private val DARK_MODE_KEY = booleanPreferencesKey("dark_mode_enabled")
 
     /**
      * Get the active dataset ID as a Flow
@@ -61,6 +63,24 @@ class PreferencesRepository(private val context: Context) {
     suspend fun setPreferredUnit(unit: String) {
         context.dataStore.edit { preferences ->
             preferences[PREFERRED_UNIT_KEY] = unit
+        }
+    }
+
+    /**
+     * Get the dark mode preference as a Flow
+     */
+    fun getDarkModeEnabled(): Flow<Boolean?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[DARK_MODE_KEY]
+        }
+    }
+
+    /**
+     * Set the dark mode preference
+     */
+    suspend fun setDarkModeEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DARK_MODE_KEY] = enabled
         }
     }
 }

@@ -79,6 +79,9 @@
     <string name="settings_title">Settings</string>
     <string name="settings_units_header">Units</string>
     <string name="settings_units_label">Preferred units</string>
+    <string name="settings_theme_header">Appearance</string>
+    <string name="settings_dark_mode_label">Dark mode</string>
+    <string name="settings_dark_mode_description">Override system theme</string>
 
     <!-- Fullscreen Graph -->
     <string name="full_graph_title">Glucose Levels (%1$s)</string>

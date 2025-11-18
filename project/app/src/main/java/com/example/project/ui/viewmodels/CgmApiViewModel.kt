@@ -59,10 +59,10 @@ class CgmApiViewModel(
     /**
      * Fetch all datasets from the API
      */
-    fun fetchDatasets() {
+    fun fetchDatasets(patientId: String? = null) {
         viewModelScope.launch {
             _datasetsState.value = UiState.Loading
-            repository.getDatasets()
+            repository.getDatasets(patientId)
                 .onSuccess { datasets ->
                     _datasetsState.value = if (datasets.isEmpty()) {
                         UiState.Empty
@@ -154,21 +154,27 @@ class CgmApiViewModel(
     }
 
     /**
+     * Clear datasets state
+     */
+    fun clearDatasetsState() {
+        _datasetsState.value = UiState.Idle
+    }
+
+    /**
      * Retry fetching datasets
      */
-    fun retryFetchDatasets() {
-        fetchDatasets()
+    fun retryFetchDatasets(patientId: String? = null) {
+        fetchDatasets(patientId)
     }
 
     /**
      * Delete a dataset
      */
-    fun deleteDataset(datasetId: String, onSuccess: () -> Unit = {}) {
+    fun deleteDataset(datasetId: String, patientId: String? = null, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             repository.deleteDataset(datasetId)
                 .onSuccess {
-                    // Refresh the datasets list after deletion
-                    fetchDatasets()
+                    fetchDatasets(patientId)
                     onSuccess()
                 }
                 .onFailure { error ->

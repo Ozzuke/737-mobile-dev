@@ -112,7 +112,9 @@ private fun PatientConnectionsView(
                 Text(
                     text = "Share Code with Clinician",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -124,12 +126,17 @@ private fun PatientConnectionsView(
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier
+                                .padding(vertical = 8.dp)
+                                .fillMaxWidth(),
+                            textAlign = TextAlign.Center
                         )
                         Text(
                             text = "Expires: ${state.data.expiresAt}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
                         )
                     }
                     is UiState.Loading -> {
@@ -139,14 +146,16 @@ private fun PatientConnectionsView(
                         Text(
                             text = state.message,
                             color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                     else -> {
                         Text(
                             text = "Generate a code to allow a clinician to connect",
                             style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
