@@ -2,10 +2,20 @@ package com.example.project.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Blue gradient colors matching the app icon
+val DeepBlue = Color(0xFF1B4F9C)      // Deep blue from icon top
+val OceanBlue = Color(0xFF2B6FB5)     // Mid-range blue
+val SkyBlue = Color(0xFF3B8FD1)       // Lighter blue
+val TurquoiseBlue = Color(0xFF00BCD4) // Cyan/turquoise from icon bottom
+val LightCyan = Color(0xFF80DEEA)     // Lighter cyan for accents
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Supporting colors
+val PureWhite = Color(0xFFFFFFFF)
+val OffWhite = Color(0xFFF8FBFF)      // Slightly blue-tinted white
+val LightGray = Color(0xFFE8F4F8)     // Very light blue-gray
+val MediumGray = Color(0xFFB0BEC5)
+val DarkGray = Color(0xFF546E7A)
+
+// Dark theme variants
+val DarkBlue = Color(0xFF0D2847)      // Very dark blue for dark theme
+val DarkTeal = Color(0xFF006978)      // Dark teal for dark theme
