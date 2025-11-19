@@ -1,5 +1,6 @@
 package com.example.project.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -195,6 +197,20 @@ fun HomeScreen(
                             }
                         }
                         // Current glucose + status indicator (side by side)
+                        // Compute a shared status color to use for both cards so they match
+                        val statusColor = when (homeState.status) {
+                            RatingCategory.GOOD -> Color(0xFF4CAF50) // Green
+                            RatingCategory.ATTENTION -> Color(0xFFFFC107) // Yellow/Orange
+                            RatingCategory.URGENT -> Color(0xFFF44336) // Red
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        }
+                        // Choose a readable content color: white on dark status colors, dark on light surfaces
+                        val statusContentColor = if (statusColor.luminance() < 0.5f) {
+                            Color.White
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -209,7 +225,9 @@ fun HomeScreen(
                                         onGraphClick(dataset.datasetId, selectedPreset)
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                containerColor = statusColor,
+                                contentColor = statusContentColor
                             )
 
                             // Right: Status indicator
@@ -220,7 +238,9 @@ fun HomeScreen(
                                         onStatusClick(dataset.datasetId)
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                containerColor = statusColor,
+                                contentColor = statusContentColor
                             )
                         }
 
@@ -237,7 +257,11 @@ fun HomeScreen(
                                         mainViewModel.changePreset(preset)
                                     },
                                     label = { Text(preset) },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        labelColor = MaterialTheme.colorScheme.onSurface,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onSurface
+                                    )
                                 )
                             }
                         }
@@ -252,7 +276,9 @@ fun HomeScreen(
                                 }
                             },
                             sourceUnit = homeState.datasetData?.unit,
-                            displayUnit = (homeState.preferredUnit ?: homeState.datasetData?.unit)
+                            displayUnit = (homeState.preferredUnit ?: homeState.datasetData?.unit),
+                            containerColor = statusColor,
+                            contentColor = statusContentColor
                         )
 
                         // Error message if any (but still showing data)
@@ -285,7 +311,9 @@ private fun GlucoseValueCard(
     unit: String,
     sourceUnit: String?,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     val displayGlucose = glucose?.let { convertGlucose(it, sourceUnit, unit) }
 
@@ -294,7 +322,8 @@ private fun GlucoseValueCard(
             .clickable(onClick = onClick)
             .height(140.dp),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
             modifier = Modifier
@@ -306,26 +335,27 @@ private fun GlucoseValueCard(
             Text(
                 text = "Current",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = contentColor
             )
             Spacer(modifier = Modifier.height(8.dp))
             if (displayGlucose != null) {
                 Text(
                     text = "%.1f".format(displayGlucose),
                     style = MaterialTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor
                 )
                 Text(
                     text = unit,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = contentColor
                 )
             } else {
                 Text(
                     text = "-- $unit",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = contentColor
                 )
             }
         }
@@ -339,7 +369,9 @@ private fun GlucoseValueCard(
 private fun StatusCard(
     status: RatingCategory?,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    containerColor: Color? = null,
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     val (color, text, icon) = when (status) {
         RatingCategory.GOOD -> Triple(
@@ -350,12 +382,12 @@ private fun StatusCard(
         RatingCategory.ATTENTION -> Triple(
             Color(0xFFFFC107), // Yellow/Orange
             "ATTENTION",
-            "⚠"
+            "!"
         )
         RatingCategory.URGENT -> Triple(
             Color(0xFFF44336), // Red
             "URGENT",
-            "!"
+            "X"
         )
         else -> Triple(
             MaterialTheme.colorScheme.surfaceVariant,
@@ -364,13 +396,15 @@ private fun StatusCard(
         )
     }
 
+    val finalContainer = containerColor ?: color
+
     Card(
         modifier = modifier
             .clickable(onClick = onClick)
             .height(140.dp),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = color)
+        colors = CardDefaults.cardColors(containerColor = finalContainer)
     ) {
         Column(
             modifier = Modifier
@@ -383,7 +417,7 @@ private fun StatusCard(
                 text = icon,
                 style = MaterialTheme.typography.displayLarge,
                 fontSize = 48.sp,
-                color = Color.White,
+                color = contentColor,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -391,7 +425,7 @@ private fun StatusCard(
                 text = text,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = contentColor,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
@@ -418,7 +452,10 @@ private fun PatientSelectorCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -446,12 +483,16 @@ private fun PatientSelectorCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                    colors = OutlinedTextFieldDefaults.colors()
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
 
                 ExposedDropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     options.forEach { (id, label) ->
                         DropdownMenuItem(

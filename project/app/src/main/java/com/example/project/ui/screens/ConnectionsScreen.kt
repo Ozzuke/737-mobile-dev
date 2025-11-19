@@ -102,7 +102,7 @@ private fun PatientConnectionsView(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
             Column(
@@ -193,7 +193,10 @@ private fun PatientConnectionsView(
                 ) {
                     items(state.data) { clinician ->
                         Card(
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
                         ) {
                             Row(
                                 modifier = Modifier
@@ -249,7 +252,7 @@ private fun ClinicianConnectionsView(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
             Column(
@@ -326,7 +329,10 @@ private fun ClinicianConnectionsView(
                 ) {
                     items(state.data) { patient ->
                         Card(
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
                         ) {
                             Row(
                                 modifier = Modifier

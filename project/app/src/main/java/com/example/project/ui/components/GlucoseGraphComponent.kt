@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -41,14 +42,17 @@ fun GlucoseGraphCard(
     modifier: Modifier = Modifier,
     sourceUnit: String? = null,
     displayUnit: String? = null,
-    graphHeight: Dp = 200.dp
+    graphHeight: Dp = 200.dp,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Column(
             modifier = Modifier
@@ -58,7 +62,8 @@ fun GlucoseGraphCard(
             Text(
                 text = stringResource(id = R.string.glucose_levels_title, preset),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = contentColor
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -70,7 +75,9 @@ fun GlucoseGraphCard(
                         .fillMaxWidth()
                         .height(graphHeight),
                     fromUnit = sourceUnit ?: datasetData.unit,
-                    toUnit = displayUnit ?: datasetData.unit
+                    toUnit = displayUnit ?: datasetData.unit,
+                    containerColor = containerColor,
+                    contentColor = contentColor
                 )
             } else {
                 Box(
@@ -78,7 +85,7 @@ fun GlucoseGraphCard(
                         .fillMaxWidth()
                         .height(graphHeight)
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
+                            containerColor.copy(alpha = 0.08f),
                             RoundedCornerShape(8.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -86,18 +93,12 @@ fun GlucoseGraphCard(
                     Text(
                         text = stringResource(id = R.string.graph_no_data),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = contentColor
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = stringResource(id = R.string.graph_tap_metrics),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -110,7 +111,9 @@ private fun GlucoseGraph(
     datasetData: DatasetData,
     modifier: Modifier = Modifier,
     fromUnit: String?,
-    toUnit: String?
+    toUnit: String?,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     // Flatten and convert points
     val allPoints = mutableListOf<GlucosePoint>()
@@ -161,19 +164,19 @@ private fun GlucoseGraph(
         }
 
         val textPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.DKGRAY
+            color = contentColor.toArgb()
             textSize = 28f
             textAlign = android.graphics.Paint.Align.RIGHT
         }
         val labelPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.DKGRAY
+            color = contentColor.toArgb()
             textSize = 30f
             textAlign = android.graphics.Paint.Align.LEFT
         }
 
         // Background
         drawRect(
-            color = Color(0xFFFFF0F0),
+            color = Color(0xFFFDE0E0), // Light red for out-of-range areas
             topLeft = Offset(leftPadding, topPadding),
             size = androidx.compose.ui.geometry.Size(graphWidth, graphHeight)
         )
@@ -211,6 +214,7 @@ private fun GlucoseGraph(
             end = Offset(leftPadding + graphWidth, tirBottom),
             strokeWidth = 2f
         )
+        /*
         drawContext.canvas.nativeCanvas.drawText(
             "TIR max",
             leftPadding + 8f,
@@ -223,11 +227,12 @@ private fun GlucoseGraph(
             tirBottom + 28f,
             labelPaint
         )
+        */
 
         // Time axis labels every 6h
         val maxMinute = allPoints.maxOf { it.minute }.coerceAtLeast(1)
         val xLabelPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.DKGRAY
+            color = contentColor.toArgb()
             textSize = 32f
             textAlign = android.graphics.Paint.Align.CENTER
         }
@@ -238,7 +243,7 @@ private fun GlucoseGraph(
             drawContext.canvas.nativeCanvas.drawText(
                 String.format(Locale.US, "%02d:00", hour),
                 x,
-                height - 4f,
+                height,
                 xLabelPaint
             )
         }

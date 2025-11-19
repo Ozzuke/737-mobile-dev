@@ -129,7 +129,10 @@ fun ProfileScreen(
             when (val user = currentUser) {
                 is PatientProfile -> {
                     Card(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
                     ) {
                         Column(
                             modifier = Modifier
@@ -158,7 +161,10 @@ fun ProfileScreen(
 
             // Actions card
             Card(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
             ) {
                 Column(
                     modifier = Modifier
