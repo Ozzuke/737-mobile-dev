@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -111,7 +112,10 @@ fun HomeScreen(
                     IconButton(onClick = onInfoClick) {
                         Icon(Icons.Outlined.Info, contentDescription = "Info", tint = c.onPrimary)
                     }
-                    IconButton(onClick = onProfileClick) {
+                    IconButton(
+                        onClick = onProfileClick,
+                        modifier = Modifier.testTag("profileButton")
+                    ) {
                         Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile", tint = c.onPrimary)
                     }
                 },

@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -91,7 +92,8 @@ fun ProfileScreen(
                             Text(
                                 text = "@${user.username}",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.testTag("profileUsername")
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
@@ -109,7 +111,8 @@ fun ProfileScreen(
                             Text(
                                 text = "@${user.username}",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.testTag("profileUsername")
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
