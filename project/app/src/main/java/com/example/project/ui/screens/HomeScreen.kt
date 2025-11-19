@@ -540,7 +540,7 @@ private fun ClinicianEmptyState() {
 }
 
 // Helper conversion
-private fun convertGlucose(value: Double, fromUnit: String?, toUnit: String?): Double {
+internal fun convertGlucose(value: Double, fromUnit: String?, toUnit: String?): Double {
     val from = (fromUnit ?: "").lowercase(Locale.US)
     val to = (toUnit ?: "").lowercase(Locale.US)
     if (from.isEmpty() || to.isEmpty() || from == to) return value
