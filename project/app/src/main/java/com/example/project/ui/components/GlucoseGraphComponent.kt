@@ -135,7 +135,13 @@ private fun GlucoseGraph(
     val displayIsMgdl = (toUnit ?: "").lowercase(Locale.US).contains("mg/dl")
     fun thr(x: Double): Double = if (displayIsMgdl) x * 18.0 else x
     val normalRange = thr(4.0)..thr(10.0)
-    val dayColor = Color(0xFF00695C)
+    
+    // Use theme colors
+    val dayColor = MaterialTheme.colorScheme.primary
+    val gridColor = contentColor.copy(alpha = 0.2f)
+    val tirColor = Color(0xFF4CAF50) // Standard green is usually fine, but let's use alpha
+    val tirBandColor = tirColor.copy(alpha = 0.15f)
+    val outOfRangeColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
 
     Canvas(modifier = modifier) {
         val width = size.width
@@ -174,16 +180,41 @@ private fun GlucoseGraph(
             textAlign = android.graphics.Paint.Align.LEFT
         }
 
-        // Background
+        // Background (Out of range areas)
+        // We don't draw a full background rect to allow container color to show through
+        // But we can highlight the "out of range" areas if we want, or just leave it clean.
+        // Let's leave it clean for dark mode compatibility, or use a very subtle wash.
+        
+        // Time-in-range band
+        val normalTop = height - bottomPadding - (((normalRange.endInclusive - minGlucose) / glucoseRange) * graphHeight).toFloat()
+        val normalBottom = height - bottomPadding - (((normalRange.start - minGlucose) / glucoseRange) * graphHeight).toFloat()
+        val tirTop = normalTop.coerceIn(topPadding, height - bottomPadding)
+        val tirBottom = normalBottom.coerceIn(topPadding, height - bottomPadding)
+        
         drawRect(
-            color = Color(0xFFFDE0E0), // Light red for out-of-range areas
-            topLeft = Offset(leftPadding, topPadding),
-            size = androidx.compose.ui.geometry.Size(graphWidth, graphHeight)
+            color = tirBandColor,
+            topLeft = Offset(leftPadding, tirTop),
+            size = androidx.compose.ui.geometry.Size(graphWidth, (tirBottom - tirTop).coerceAtLeast(0f))
+        )
+        
+        // TIR boundary lines
+        drawLine(
+            color = tirColor.copy(alpha = 0.5f),
+            start = Offset(leftPadding, tirTop),
+            end = Offset(leftPadding + graphWidth, tirTop),
+            strokeWidth = 2f
+        )
+        drawLine(
+            color = tirColor.copy(alpha = 0.5f),
+            start = Offset(leftPadding, tirBottom),
+            end = Offset(leftPadding + graphWidth, tirBottom),
+            strokeWidth = 2f
         )
 
+        // Y axis ticks
         ticks.forEach { tickValue ->
             val y = height - bottomPadding - (((tickValue - minGlucose) / glucoseRange) * graphHeight).toFloat()
-            drawLine(color = Color.LightGray.copy(alpha = 0.4f), start = Offset(leftPadding, y), end = Offset(leftPadding + graphWidth, y), strokeWidth = 1f)
+            drawLine(color = gridColor, start = Offset(leftPadding, y), end = Offset(leftPadding + graphWidth, y), strokeWidth = 1f)
             drawContext.canvas.nativeCanvas.drawText(
                 String.format(Locale.US, "%.1f", tickValue),
                 leftPadding - 15f,
@@ -191,43 +222,6 @@ private fun GlucoseGraph(
                 textPaint
             )
         }
-
-        // Time-in-range band
-        val normalTop = height - bottomPadding - (((normalRange.endInclusive - minGlucose) / glucoseRange) * graphHeight).toFloat()
-        val normalBottom = height - bottomPadding - (((normalRange.start - minGlucose) / glucoseRange) * graphHeight).toFloat()
-        val tirTop = normalTop.coerceIn(topPadding, height - bottomPadding)
-        val tirBottom = normalBottom.coerceIn(topPadding, height - bottomPadding)
-        drawRect(
-            color = Color(0xFFC7F5D9).copy(alpha = 0.7f),
-            topLeft = Offset(leftPadding, tirTop),
-            size = androidx.compose.ui.geometry.Size(graphWidth, (tirBottom - tirTop).coerceAtLeast(0f))
-        )
-        drawLine(
-            color = Color(0xFF4CAF50),
-            start = Offset(leftPadding, tirTop),
-            end = Offset(leftPadding + graphWidth, tirTop),
-            strokeWidth = 2f
-        )
-        drawLine(
-            color = Color(0xFF4CAF50),
-            start = Offset(leftPadding, tirBottom),
-            end = Offset(leftPadding + graphWidth, tirBottom),
-            strokeWidth = 2f
-        )
-        /*
-        drawContext.canvas.nativeCanvas.drawText(
-            "TIR max",
-            leftPadding + 8f,
-            tirTop - 8f,
-            labelPaint
-        )
-        drawContext.canvas.nativeCanvas.drawText(
-            "TIR min",
-            leftPadding + 8f,
-            tirBottom + 28f,
-            labelPaint
-        )
-        */
 
         // Time axis labels every 6h
         val maxMinute = allPoints.maxOf { it.minute }.coerceAtLeast(1)
@@ -239,7 +233,7 @@ private fun GlucoseGraph(
         for (hour in 0..24 step 3) {
             val minute = hour * 60
             val x = leftPadding + (minute / maxMinute.toFloat()) * graphWidth
-            drawLine(color = Color.LightGray.copy(alpha = 0.4f), start = Offset(x, height - bottomPadding), end = Offset(x, height - bottomPadding + 8f), strokeWidth = 1f)
+            drawLine(color = gridColor, start = Offset(x, height - bottomPadding), end = Offset(x, height - bottomPadding + 8f), strokeWidth = 1f)
             drawContext.canvas.nativeCanvas.drawText(
                 String.format(Locale.US, "%02d:00", hour),
                 x,
@@ -248,7 +242,7 @@ private fun GlucoseGraph(
             )
         }
 
-        // Draw each day path with low-alpha teal
+        // Draw each day path
         datasetData.overlayDays.forEach { day ->
             if (day.points.size < 2) return@forEach
             val convertedPoints = day.points.map { pt ->
@@ -262,7 +256,7 @@ private fun GlucoseGraph(
             }
             drawPath(
                 path = path,
-                color = dayColor.copy(alpha = 0.3f),
+                color = dayColor.copy(alpha = 0.4f),
                 style = Stroke(width = 4.5f, cap = StrokeCap.Round, join = StrokeJoin.Round)
             )
         }

@@ -1,49 +1,16 @@
 package com.example.project.data.remote.mapper
 
-import com.example.project.data.remote.dto.*
-import com.example.project.domain.model.*
-
 /**
  * Mapper functions to convert dataset DTOs to domain models
+ *
+ * Note: Dataset mapping logic is now handled directly in CgmApiRepositoryImpl
+ * as the API response structure changed. The new API returns:
+ * - DatasetListResponseDto with DatasetItemDto items (for dataset lists)
+ * - DataOverlayResponseDto with OverlayDataDto (for overlay data)
+ *
+ * Mapping is done inline in the repository to handle the complex data transformations
+ * (e.g., calculating sampling intervals, mapping nested structures).
+ *
+ * This file is kept for potential future mapper functions if needed.
  */
 
-fun DatasetSummaryDto.toDomain(): DatasetSummary {
-    return DatasetSummary(
-        datasetId = datasetId,
-        nickname = nickname ?: "Unnamed Dataset",
-        createdAt = createdAt,
-        rowCount = rowCount,
-        startDate = start,
-        endDate = end,
-        unit = unitInternal,
-        samplingIntervalMin = samplingIntervalMin
-    )
-}
-
-fun DatasetDataResponseDto.toDomain(): DatasetData {
-    return DatasetData(
-        datasetId = dataset.datasetId,
-        nickname = dataset.nickname ?: "Unnamed Dataset",
-        unit = unit,
-        requestedPreset = meta.requestedPreset,
-        availableDays = meta.availableDays,
-        coveragePercent = meta.coveragePercent,
-        resolutionMin = meta.resolutionMin,
-        warnings = meta.warnings,
-        overlayDays = overlay.days.map { it.toDomain() }
-    )
-}
-
-fun OverlayDayDto.toDomain(): OverlayDay {
-    return OverlayDay(
-        date = date,
-        points = points.map { it.toDomain() }
-    )
-}
-
-fun OverlayPointDto.toDomain(): GlucosePoint {
-    return GlucosePoint(
-        minute = minute,
-        glucose = glucose
-    )
-}

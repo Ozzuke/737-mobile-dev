@@ -225,9 +225,7 @@ fun HomeScreen(
                                         onGraphClick(dataset.datasetId, selectedPreset)
                                     }
                                 },
-                                modifier = Modifier.weight(1f),
-                                containerColor = statusColor,
-                                contentColor = statusContentColor
+                                modifier = Modifier.weight(1f)
                             )
 
                             // Right: Status indicator
@@ -276,9 +274,7 @@ fun HomeScreen(
                                 }
                             },
                             sourceUnit = homeState.datasetData?.unit,
-                            displayUnit = (homeState.preferredUnit ?: homeState.datasetData?.unit),
-                            containerColor = statusColor,
-                            contentColor = statusContentColor
+                            displayUnit = (homeState.preferredUnit ?: homeState.datasetData?.unit)
                         )
 
                         // Error message if any (but still showing data)

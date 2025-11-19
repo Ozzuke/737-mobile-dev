@@ -108,7 +108,4 @@ data class ConnectedClinicianDto(
     @Json(name = "full_name") val fullName: String
 )
 
-@JsonClass(generateAdapter = true)
-data class MessageResponseDto(
-    @Json(name = "message") val message: String
-)
+// MessageResponseDto is defined in CommonDto.kt to avoid duplication

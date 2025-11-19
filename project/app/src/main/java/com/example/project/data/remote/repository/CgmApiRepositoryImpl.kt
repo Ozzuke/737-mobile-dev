@@ -52,36 +52,38 @@ class CgmApiRepositoryImpl(
         try {
             val response = apiService.getDatasetMetadata(patientId = patientId)
             if (response.isSuccessful) {
-                val dataset = response.body()
-                if (dataset == null) {
+                val responseBody = response.body()
+                if (responseBody == null || responseBody.items.isEmpty()) {
                     Result.success(emptyList())
                 } else {
-                    val datasetId = dataset.id ?: dataset.legacyDatasetId ?: "unknown"
-                    val start = dataset.dateRange?.start ?: ""
-                    val end = dataset.dateRange?.end ?: ""
-                    val rowCount = dataset.totalReadings ?: 0
-                    val samplingIntervalMin = runCatching {
-                        if (rowCount <= 1 || start.isBlank() || end.isBlank()) {
-                            0
-                        } else {
-                            val startInstant = Instant.parse(start)
-                            val endInstant = Instant.parse(end)
-                            val minutes = Duration.between(startInstant, endInstant).toMinutes().coerceAtLeast(0)
-                            if (minutes <= 0) 0 else (minutes / (rowCount - 1)).toInt()
-                        }
-                    }.getOrElse { 0 }
+                    val summaries = responseBody.items.map { dataset ->
+                        val datasetId = dataset.id ?: "unknown"
+                        val start = dataset.dateRange?.start ?: ""
+                        val end = dataset.dateRange?.end ?: ""
+                        val rowCount = dataset.totalReadings ?: 0
+                        val samplingIntervalMin = runCatching {
+                            if (rowCount <= 1 || start.isBlank() || end.isBlank()) {
+                                0
+                            } else {
+                                val startInstant = Instant.parse(start)
+                                val endInstant = Instant.parse(end)
+                                val minutes = Duration.between(startInstant, endInstant).toMinutes().coerceAtLeast(0)
+                                if (minutes <= 0) 0 else (minutes / (rowCount - 1)).toInt()
+                            }
+                        }.getOrElse { 0 }
 
-                    val summary = DatasetSummary(
-                        datasetId = datasetId,
-                        nickname = "",
-                        createdAt = dataset.createdAt ?: "",
-                        rowCount = rowCount,
-                        startDate = start,
-                        endDate = end,
-                        unit = dataset.unit ?: "",
-                        samplingIntervalMin = samplingIntervalMin
-                    )
-                    Result.success(listOf(summary))
+                        DatasetSummary(
+                            datasetId = datasetId,
+                            nickname = "",
+                            createdAt = dataset.createdAt ?: "",
+                            rowCount = rowCount,
+                            startDate = start,
+                            endDate = end,
+                            unit = dataset.unit ?: "",
+                            samplingIntervalMin = samplingIntervalMin
+                        )
+                    }
+                    Result.success(summaries)
                 }
             } else if (response.code() == 404) {
                 Result.success(emptyList())
@@ -110,9 +112,9 @@ class CgmApiRepositoryImpl(
                 patientId = patientId
             )
             if (response.isSuccessful && response.body() != null) {
-                val overlay = response.body()!!
-                val unit = overlay.unit ?: "" // no hardcoded unit, empty if missing
-                val days = overlay.overlay?.days.orEmpty()
+                val overlayResponse = response.body()!!
+                val unit = overlayResponse.unit ?: ""
+                val days = overlayResponse.overlay?.days.orEmpty()
                 val resolutionMin = runCatching {
                     val pts = days.firstOrNull()?.points
                     if (pts != null && pts.size >= 2) (pts[1].minute - pts[0].minute).coerceAtLeast(1) else 0
@@ -121,9 +123,9 @@ class CgmApiRepositoryImpl(
                     datasetId = datasetId,
                     nickname = "", // nickname not provided by API
                     unit = unit,
-                    requestedPreset = overlay.preset ?: preset,
+                    requestedPreset = overlayResponse.meta?.preset ?: preset,
                     availableDays = days.size,
-                    coveragePercent = overlay.coveragePercent ?: 0.0,
+                    coveragePercent = overlayResponse.meta?.coveragePercent ?: 0.0,
                     resolutionMin = resolutionMin,
                     warnings = emptyList(),
                     overlayDays = days.map { day ->
@@ -171,74 +173,43 @@ class CgmApiRepositoryImpl(
             if (response.isSuccessful && response.body() != null) {
                 val analysisDto = response.body()!!
                 val unit = analysisDto.unit ?: ""
-                val meta = analysisDto.meta
-                val overall = analysisDto.overall
-                val annotations = analysisDto.annotations
-                val patternsDto = analysisDto.patterns.orEmpty()
+                // Map new response structure to domain model
+                // Note: Domain model might need updates to fully support new fields, 
+                // but for now we map what we can to existing fields.
+                
+                val overall = analysisDto.overallAssessment
+                val patternsDto = analysisDto.basalPatterns.orEmpty()
                 val textDto = analysisDto.text
 
                 val analysis = AnalysisResult(
                     unit = unit,
                     requestedPreset = preset,
-                    availableDays = meta?.daysCount ?: 0,
-                    coveragePercent = meta?.coveragePercent ?: 0.0,
+                    availableDays = analysisDto.analysisDays ?: 0,
+                    coveragePercent = analysisDto.dataQuality?.coveragePercentage ?: 0.0,
                     overallRating = com.example.project.domain.model.OverallRating(
-                        category = when (overall?.rating?.uppercase()) {
-                            "GOOD" -> com.example.project.domain.model.RatingCategory.GOOD
-                            "ATTENTION" -> com.example.project.domain.model.RatingCategory.ATTENTION
-                            "URGENT" -> com.example.project.domain.model.RatingCategory.URGENT
+                        category = when (overall?.status?.uppercase()?.replace(" ", "_")) {
+                            "ALL_CLEAR" -> com.example.project.domain.model.RatingCategory.GOOD
+                            "MODERATE_CONCERN" -> com.example.project.domain.model.RatingCategory.ATTENTION
+                            "SERIOUS_CONCERN" -> com.example.project.domain.model.RatingCategory.URGENT
                             else -> com.example.project.domain.model.RatingCategory.UNKNOWN
                         },
                         score = null,
-                        reasons = listOfNotNull(overall?.summary)
+                        reasons = overall?.summary?.let { listOf(it) } ?: emptyList()
                     ),
-                    trends = annotations?.trends.orEmpty().map { trend ->
-                        com.example.project.domain.model.TrendAnnotation(
-                            startMinute = trend.startMinute,
-                            endMinute = trend.endMinute,
-                            slopeMmolLPerHour = trend.slopeMmolLPerHour,
-                            direction = when (trend.direction.uppercase()) {
-                                "UP" -> com.example.project.domain.model.TrendDirection.UP
-                                "DOWN" -> com.example.project.domain.model.TrendDirection.DOWN
-                                else -> com.example.project.domain.model.TrendDirection.UNKNOWN
-                            },
-                            exampleSpan = trend.exampleSpan
-                        )
-                    },
-                    extrema = annotations?.extrema.orEmpty().map { extrema ->
-                        com.example.project.domain.model.ExtremaAnnotation(
-                            minute = extrema.minute,
-                            value = extrema.value,
-                            kind = when (extrema.kind.uppercase()) {
-                                "MAX" -> com.example.project.domain.model.ExtremaKind.MAX
-                                "MIN" -> com.example.project.domain.model.ExtremaKind.MIN
-                                else -> com.example.project.domain.model.ExtremaKind.UNKNOWN
-                            }
-                        )
-                    },
+                    trends = emptyList(), // Trends are now part of specific patterns or events
+                    extrema = emptyList(), // Extrema are now part of specific events
                     patterns = patternsDto.map { pattern ->
                         com.example.project.domain.model.Pattern(
-                            key = pattern.key,
-                            name = pattern.name,
-                            severity = when (pattern.severity.uppercase()) {
-                                "INFO" -> com.example.project.domain.model.PatternSeverity.INFO
-                                "MODERATE" -> com.example.project.domain.model.PatternSeverity.MODERATE
-                                "HIGH" -> com.example.project.domain.model.PatternSeverity.HIGH
-                                else -> com.example.project.domain.model.PatternSeverity.UNKNOWN
-                            },
-                            summary = pattern.summary,
-                            instances = pattern.instances.map { instance ->
-                                com.example.project.domain.model.PatternInstance(
-                                    date = instance.date,
-                                    startMinute = instance.startMinute,
-                                    endMinute = instance.endMinute
-                                )
-                            }
+                            key = pattern.patternType ?: "unknown",
+                            name = pattern.patternType ?: "Unknown Pattern",
+                            severity = com.example.project.domain.model.PatternSeverity.INFO, // Severity not explicit in BasalPattern
+                            summary = pattern.description ?: "",
+                            instances = emptyList() // Instances not detailed in BasalPattern the same way
                         )
                     },
                     summary = textDto?.summary ?: "",
                     interpretation = textDto?.interpretation ?: "",
-                    warnings = emptyList()
+                    warnings = analysisDto.warnings.orEmpty()
                 )
                 Result.success(analysis)
             } else {
@@ -276,17 +247,16 @@ class CgmApiRepositoryImpl(
             if (response.isSuccessful && response.body() != null) {
                 val explainDto = response.body()!!
                 val meta = explainDto.meta
-                val explanationText = when (val ex = explainDto.explanation) {
-                    is String -> ex
-                    is Map<*, *> -> ex["text"] as? String ?: ex.toString()
-                    is List<*> -> ex.joinToString("\n") { it.toString() }
-                    null -> ""
-                    else -> ex.toString()
-                }
+                val content = explainDto.explanation
+                
+                val summaryText = content?.summary ?: ""
+                val interpretationText = content?.interpretation ?: ""
+                val recommendations = content?.recommendations.orEmpty()
+                
                 val explanation = com.example.project.domain.model.LLMExplanation(
-                    summary = explanationText,
-                    interpretation = explanationText,
-                    recommendations = emptyList(),
+                    summary = summaryText,
+                    interpretation = interpretationText,
+                    recommendations = recommendations,
                     coveragePercent = meta?.coveragePercent ?: 0.0,
                     preset = meta?.preset ?: preset
                 )
@@ -338,13 +308,13 @@ class CgmApiRepositoryImpl(
                 val uploadResponse = response.body()!!
                 // Create a DatasetSummary from upload response
                 val summary = DatasetSummary(
-                    datasetId = uploadResponse.datasetId,
+                    datasetId = uploadResponse.datasetId ?: "unknown",
                     nickname = "",
                     createdAt = "", // Not in upload response
-                    rowCount = uploadResponse.totalReadings,
-                    startDate = uploadResponse.dateRange.start,
-                    endDate = uploadResponse.dateRange.end,
-                    unit = uploadResponse.unit,
+                    rowCount = uploadResponse.totalReadings ?: 0,
+                    startDate = uploadResponse.dateRange?.start ?: "",
+                    endDate = uploadResponse.dateRange?.end ?: "",
+                    unit = uploadResponse.unit ?: "",
                     samplingIntervalMin = 0
                 )
                 Result.success(summary)
