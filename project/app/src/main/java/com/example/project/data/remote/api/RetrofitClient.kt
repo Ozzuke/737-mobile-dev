@@ -19,7 +19,7 @@ class RetrofitClient(
     private val onTokenRefreshNeeded: suspend () -> Boolean
 ) {
     companion object {
-        private const val BASE_URL = "http://cgm.cloud.ut.ee/api/v1/"
+        private const val BASE_URL = "https://cgm.cloud.ut.ee/api/v1/"
     }
 
     // Moshi instance for JSON parsing
