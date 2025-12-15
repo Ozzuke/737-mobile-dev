@@ -27,9 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.project.R
 import com.example.project.domain.model.ClinicianProfile
 import com.example.project.domain.model.RatingCategory
+import com.example.project.ui.components.DisclaimerDialog
 import com.example.project.ui.components.GlucoseGraphCard
 import com.example.project.ui.UiState
 import com.example.project.ui.viewmodels.AuthViewModel
@@ -59,6 +61,7 @@ fun HomeScreen(
     val currentUser by authViewModel.currentUser.collectAsState()
     val connectedPatientsState by connectionViewModel.connectedPatientsState.collectAsState()
     var selectedPreset by remember { mutableStateOf("24h") }
+    var showDisclaimer by rememberSaveable { mutableStateOf(true) }
 
     // Check if user is a clinician
     val isClinician = currentUser is ClinicianProfile
@@ -78,6 +81,13 @@ fun HomeScreen(
         if (!isClinician || homeState.selectedPatientId != null) {
             mainViewModel.fetchLatestData()
         }
+    }
+
+    if (showDisclaimer) {
+        DisclaimerDialog(
+            onDismiss = { showDisclaimer = false },
+            showOfflineWarning = false
+        )
     }
 
     Scaffold(
@@ -173,6 +183,12 @@ fun HomeScreen(
                             Icon(Icons.Outlined.Refresh, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Retry")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(onClick = onAddClick) {
+                            Icon(Icons.Outlined.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Upload Data")
                         }
                     }
                 }

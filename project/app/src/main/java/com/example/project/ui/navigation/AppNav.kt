@@ -176,6 +176,10 @@ fun AppNav() {
         composable(Screen.Upload.route) {
             UploadScreen(
                 onBackClick = { navController.popBackStack() },
+                onUploadSuccess = {
+                    mainViewModel.fetchLatestData()
+                    navController.popBackStack()
+                },
                 viewModel = glucoseViewModel
             )
         }

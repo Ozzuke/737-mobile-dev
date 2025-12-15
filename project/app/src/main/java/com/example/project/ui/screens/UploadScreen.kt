@@ -26,6 +26,7 @@ import com.example.project.R
 @Composable
 fun UploadScreen(
     onBackClick: () -> Unit = {},
+    onUploadSuccess: () -> Unit = {},
     viewModel: GlucoseViewModel = viewModel()
 ) {
     val c = MaterialTheme.colorScheme
@@ -46,6 +47,7 @@ fun UploadScreen(
             is UiState.Success -> {
                 Toast.makeText(context, context.getString(R.string.upload_success), Toast.LENGTH_SHORT).show()
                 viewModel.resetUploadStatus() // Reset state after showing toast
+                onUploadSuccess()
             }
             is UiState.Error -> {
                 Toast.makeText(context, context.getString(R.string.upload_failed, state.message), Toast.LENGTH_LONG).show()
