@@ -81,6 +81,7 @@ fun RegisterScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding()
                 .padding(24.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
